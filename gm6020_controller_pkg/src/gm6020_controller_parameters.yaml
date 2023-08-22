@@ -1,0 +1,69 @@
+gm6020_controller:
+  motor_names: {
+    type: string_array,
+    default_value: ["motor1", "motor2", "motor3", "motor4"],
+    description: "Link names of the motors",
+  }
+  base_frame_id: {
+    type: string,
+    default_value: "base_link",
+    description: "Name of the motor's base frame that is child of the odometry frame.",
+  }
+  position_feedback: {
+    type: bool,
+    default_value: true,
+    description: "Is there position feedback from hardware.",
+  }
+  cmd_timeout: {
+    type: double,
+    default_value: 0.5, # seconds
+    description: "Timeout after which input command on ``gm6020/cmd`` topic is considered staled.",
+  }
+  use_stamped_cmd: {
+    type: bool,
+    default_value: true,
+    description: "Use stamp from input message to calculate how old the command actually is.",
+  }
+  publish_rate: {
+    type: double,
+    default_value: 60.0, # Hz
+    description: "Publishing rate (Hz) of the odometry and TF messages.",
+  }
+  linear:
+    x:
+      has_velocity_limits: {
+        type: bool,
+        default_value: true,
+      }
+      has_acceleration_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_jerk_limits: {
+        type: bool,
+        default_value: false,
+      }
+      max_velocity: {
+        type: double,
+        default_value: 30000,
+      }
+      min_velocity: {
+        type: double,
+        default_value: -30000,
+      }
+      max_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_jerk: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_jerk: {
+        type: double,
+        default_value: .NAN,
+      }

@@ -12,9 +12,11 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>controller_interface</depend>
-  
+  <depend>rm_interfaces</depend>
+  <depend>math_utilities</depend>
   <depend>pluginlib</depend>
-
+  <depend>generate_parameter_library</depend>
+  
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

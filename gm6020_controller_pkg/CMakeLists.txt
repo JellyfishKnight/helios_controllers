@@ -10,19 +10,28 @@ find_package(ament_cmake_auto REQUIRED)
 
 ament_auto_find_build_dependencies()
 
+generate_parameter_library(
+  gm6020_controller_parameters # cmake target name for the parameter library
+  src/gm6020_controller_parameters.yaml # path to input yaml file
+)
+
 ament_auto_add_library(${PROJECT_NAME} SHARED
   DIRECTORY src
 )
-
-# Causes the visibility macros to use dllexport rather than dllimport,
-# which is appropriate when building the dll but not consuming it.
-target_compile_definitions(${PROJECT_NAME} PRIVATE "GM6020_BUILDING_DLL")
-
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC
   include/${PROJECT_NAME}
 )
+
+target_link_libraries(
+  ${PROJECT_NAME}
+  gm6020_controller_parameters
+)
+
+# Causes the visibility macros to use dllexport rather than dllimport,
+# which is appropriate when building the dll but not consuming it.
+target_compile_definitions(${PROJECT_NAME} PRIVATE "GM6020_BUILDING_DLL")
 
 if(BUILD_TESTING) 
   find_package(ament_lint_auto REQUIRED)
