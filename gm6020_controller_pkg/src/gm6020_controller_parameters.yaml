@@ -4,6 +4,11 @@ gm6020_controller:
     default_value: ["motor1", "motor2", "motor3", "motor4"],
     description: "Link names of the motors",
   }
+  motor_state_interfaces: {
+    type: string_array,
+    default_value: ["angle", "speed", "effort", "temperature"],
+    description: "State interfaces' names of motors",
+  }
   base_frame_id: {
     type: string,
     default_value: "base_link",
