@@ -6,6 +6,7 @@
 #include "realtime_tools/realtime_tools/realtime_box.h"
 #include "realtime_tools/realtime_tools/realtime_publisher.h"
 #include "rm_interfaces/msg/gm6020_msg.hpp"
+#include "rclcpp_lifecycle/state.hpp"
 
 #include "visibility_control.h"
 #include "SpeedLimiter.hpp"

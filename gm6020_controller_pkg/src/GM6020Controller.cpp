@@ -1,4 +1,5 @@
 #include "GM6020Controller.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 
 namespace helios_control {
 
@@ -122,7 +123,24 @@ namespace helios_control {
     }
 
     controller_interface::return_type GM6020Controller::update(const rclcpp::Time &time, const rclcpp::Duration &period) {
-        
+        if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+            if (!is_halted_) {
+                halt();
+                is_halted_ = true;
+            }
+            return controller_interface::return_type::OK;
+        }
+        std::shared_ptr<rm_interfaces::msg::GM6020Msg> last_command_msg;
+        received_gm6020_ptr_.get(last_command_msg);
+        if (last_command_msg == nullptr) {
+            RCLCPP_WARN(logger_, "Command message received was a nullptr");
+            return controller_interface::return_type::ERROR;
+        }
+        const auto age_of_last_command = time - last_command_msg->header.stamp;
+        // Brake if cmd has timeout, override the stored command
+        if (age_of_last_command > cmd_timeout_) {
+            
+        }
         return controller_interface::return_type::OK;
     }
 
