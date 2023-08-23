@@ -32,6 +32,7 @@ namespace helios_control {
     }
 
     controller_interface::CallbackReturn GM6020Controller::on_configure(const rclcpp_lifecycle::State &previous_state) {
+        // update parameters if they have changed
         if (param_listener_->is_old(params_)) {
             params_ = param_listener_->get_params();
             RCLCPP_INFO(logger_, "Parameters were updated");
@@ -41,6 +42,22 @@ namespace helios_control {
             return controller_interface::CallbackReturn::ERROR;
         }
         cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
+        use_stamped_cmd = params_.use_stamped_cmd;
+        // init speed limter
+        limiter_ = SpeedLimiter(
+            params_.linear.x.has_velocity_limits,
+            params_.linear.x.has_acceleration_limits,
+            params_.linear.x.has_jerk_limits,
+            params_.linear.x.min_velocity,
+            params_.linear.x.max_velocity,
+            params_.linear.x.min_acceleration,
+            params_.linear.x.max_acceleration,
+            params_.linear.x.min_jerk,
+            params_.linear.x.max_jerk
+        );
+        if (!reset()) {
+            return controller_interface::CallbackReturn::ERROR;
+        }
         
         return controller_interface::CallbackReturn::SUCCESS;
     }

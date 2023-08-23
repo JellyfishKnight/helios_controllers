@@ -5,10 +5,10 @@
 #include "realtime_tools/realtime_tools/realtime_buffer.h"
 #include "realtime_tools/realtime_tools/realtime_box.h"
 #include "realtime_tools/realtime_tools/realtime_publisher.h"
-
 #include "rm_interfaces/msg/gm6020_msg.hpp"
 
 #include "visibility_control.h"
+#include "SpeedLimiter.hpp"
 
 #include <vector>
 #include <string>
@@ -63,6 +63,8 @@ protected:
     rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
     // Timeout to consider cmd commands old
     std::chrono::milliseconds cmd_timeout_{500};
+
+    SpeedLimiter limiter_;
 
     bool is_halted = false;
     bool use_stamped_cmd = true;
