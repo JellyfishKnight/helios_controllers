@@ -42,7 +42,7 @@ namespace helios_control {
             return controller_interface::CallbackReturn::ERROR;
         }
         cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
-        use_stamped_cmd = params_.use_stamped_cmd;
+        use_stamped_cmd_ = params_.use_stamped_cmd;
         // init speed limter
         limiter_ = SpeedLimiter(
             params_.linear.x.has_velocity_limits,
@@ -70,11 +70,11 @@ namespace helios_control {
         received_gm6020_ptr_.set(std::make_shared<rm_interfaces::msg::GM6020Msg>(empty_gm6020_msg));
 
         // initialize command subscriber
-        if (use_stamped_cmd) {
+        if (use_stamped_cmd_) {
             cmd_sub_ = get_node()->create_subscription<rm_interfaces::msg::GM6020Msg>(
                 DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
                 [this](const std::shared_ptr<rm_interfaces::msg::GM6020Msg> msg)->void {
-                    if (!subscriber_is_active) {
+                    if (!subscriber_is_active_) {
                         RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
                         return ;
                     }
@@ -99,12 +99,25 @@ namespace helios_control {
     }
 
     controller_interface::CallbackReturn GM6020Controller::on_activate(const rclcpp_lifecycle::State & previous_state) {
-        
+        is_halted_ = false;
+        subscriber_is_active_ = true;
+        RCLCPP_DEBUG(get_node()->get_logger(), "Subscriber and publisher are now active.");
         return controller_interface::CallbackReturn::SUCCESS;
     }
 
     controller_interface::CallbackReturn GM6020Controller::on_deactivate(const rclcpp_lifecycle::State & previous_state) {
-        
+        subscriber_is_active_ = false;
+        if (!is_halted_) {
+            halt();
+            is_halted_ = true;
+        }
+        return controller_interface::CallbackReturn::SUCCESS;
+    }
+
+    controller_interface::CallbackReturn GM6020Controller::on_cleanup(const rclcpp_lifecycle::State& previous_state) {
+        if (!reset()) {
+            return controller_interface::CallbackReturn::ERROR;
+        }
         return controller_interface::CallbackReturn::SUCCESS;
     }
 
@@ -113,4 +126,22 @@ namespace helios_control {
         return controller_interface::return_type::OK;
     }
 
+    bool GM6020Controller::reset() {
+        subscriber_is_active_ = false;
+        cmd_sub_.reset();
+        received_cmd_msg_ptr_.reset();
+        is_halted_ = false;
+        return true;
+    }
+
+    void GM6020Controller::halt() {
+
+    }
+
 } // helios_control
+
+// register controller class 
+#include "class_loader/register_macro.hpp"
+
+CLASS_LOADER_REGISTER_CLASS(
+  helios_control::GM6020Controller, controller_interface::ControllerInterface)
