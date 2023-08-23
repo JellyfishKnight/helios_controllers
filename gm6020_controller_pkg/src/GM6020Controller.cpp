@@ -58,7 +58,43 @@ namespace helios_control {
         if (!reset()) {
             return controller_interface::CallbackReturn::ERROR;
         }
-        
+        // create publisher
+        limited_pub_ = get_node()->create_publisher<rm_interfaces::msg::GM6020Msg>(
+            DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
+        );
+        realtime_gm6020_pub_ = std::make_shared<realtime_tools::RealtimePublisher<rm_interfaces::msg::GM6020Msg>>(
+            limited_pub_
+        );
+
+        const rm_interfaces::msg::GM6020Msg empty_gm6020_msg;
+        received_gm6020_ptr_.set(std::make_shared<rm_interfaces::msg::GM6020Msg>(empty_gm6020_msg));
+
+        // initialize command subscriber
+        if (use_stamped_cmd) {
+            cmd_sub_ = get_node()->create_subscription<rm_interfaces::msg::GM6020Msg>(
+                DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
+                [this](const std::shared_ptr<rm_interfaces::msg::GM6020Msg> msg)->void {
+                    if (!subscriber_is_active) {
+                        RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
+                        return ;
+                    }
+                    if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
+                        RCLCPP_WARN_ONCE(logger_,
+                            "Received TwistStamped with zero timestamp, setting it to current "
+                            "time, this message will only be shown once"
+                        );
+                        msg->header.stamp = get_node()->get_clock()->now();
+                    }
+                    received_cmd_msg_ptr_ = std::move(msg);
+                }
+            );
+        } else {
+            RCLCPP_ERROR_ONCE(logger_, "Time stamp of the msg is required!");
+            return controller_interface::CallbackReturn::ERROR;
+        }
+        // set publish rate
+        publish_rate_ = params_.publish_rate;
+        publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
         return controller_interface::CallbackReturn::SUCCESS;
     }
 

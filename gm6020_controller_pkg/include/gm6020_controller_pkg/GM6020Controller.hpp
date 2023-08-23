@@ -50,15 +50,18 @@ public:
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
     std::shared_ptr<realtime_tools::RealtimePublisher<rm_interfaces::msg::GM6020Msg>> realtime_gm6020_pub_;
+    rclcpp::Publisher<rm_interfaces::msg::GM6020Msg>::SharedPtr limited_pub_;
 
     realtime_tools::RealtimeBox<std::shared_ptr<rm_interfaces::msg::GM6020Msg>> received_gm6020_ptr_;
-
+    
+    rclcpp::Subscription<rm_interfaces::msg::GM6020Msg>::SharedPtr cmd_sub_;
+    std::shared_ptr<rm_interfaces::msg::GM6020Msg> received_cmd_msg_ptr_;
     // Parameters from ROS for gm6020_controller
     std::shared_ptr<gm6020_controller::ParamListener> param_listener_;
     gm6020_controller::Params params_;
 
     // publish rate limiter
-    double publish_rate = 1000.0;
+    double publish_rate_ = 1000.0;
     rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
     rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
     // Timeout to consider cmd commands old
@@ -68,7 +71,7 @@ protected:
 
     bool is_halted = false;
     bool use_stamped_cmd = true;
-
+    bool subscriber_is_active = false;
     bool reset();
 
     void halt();
