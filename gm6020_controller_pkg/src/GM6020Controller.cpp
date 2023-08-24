@@ -139,12 +139,67 @@ namespace helios_control {
         const auto age_of_last_command = time - last_command_msg->header.stamp;
         // Brake if cmd has timeout, override the stored command
         if (age_of_last_command > cmd_timeout_) {
-            
+            last_command_msg->motor_speed_1 = 0.0;
+            last_command_msg->motor_speed_2 = 0.0;
+            last_command_msg->motor_speed_3 = 0.0;
+            last_command_msg->motor_speed_4 = 0.0;
         }
+        // command may be limited futher by SpeedLimit
+        // without affecting the stored command
+        rm_interfaces::msg::GM6020Msg command = *last_command_msg;
+        double command_motor1 = command.motor_speed_1;
+        double command_motor2 = command.motor_speed_2;
+        double command_motor3 = command.motor_speed_3;
+        double command_motor4 = command.motor_speed_4;
+
+        previous_publish_timestamp_ = time;
+
+        bool should_publish = false;
+        try {
+            if (previous_publish_timestamp_ + publish_period_ < time) {
+                previous_publish_timestamp_ += publish_period_;
+                should_publish = true;
+            }
+        } catch (std::runtime_error &) {
+            // Handle exceptions when the time source changes and initialize publish timestamp
+            previous_publish_timestamp_ = time;
+            should_publish = true;
+        }
+        
+        auto & last_command = previous_commands_.back();
+        auto & second_to_last_command = previous_commands_.front();
+        limiter_.limit(command_motor1, last_command.motor_speed_1, second_to_last_command.motor_speed_1, period.seconds());
+        limiter_.limit(command_motor2, last_command.motor_speed_2, second_to_last_command.motor_speed_2, period.seconds());
+        limiter_.limit(command_motor3, last_command.motor_speed_3, second_to_last_command.motor_speed_3, period.seconds());
+        limiter_.limit(command_motor4, last_command.motor_speed_4, second_to_last_command.motor_speed_4, period.seconds());
+        previous_commands_.pop();
+        previous_commands_.emplace(command);
+
+        // Publish limited velocity
+        if (realtime_gm6020_pub_->trylock()) {
+            auto & limited_velocity_command = realtime_gm6020_pub_->msg_;
+            limited_velocity_command.header.stamp = time;
+            limited_velocity_command.motor_speed_1 = command_motor1;
+            limited_velocity_command.motor_speed_2 = command_motor2;
+            limited_velocity_command.motor_speed_3 = command_motor3;
+            limited_velocity_command.motor_speed_4 = command_motor4;
+            realtime_gm6020_pub_->unlockAndPublish();
+        }
+        // set output 
+        command_interfaces_[0].set_value(command_motor1);
+        command_interfaces_[1].set_value(command_motor2);
+        command_interfaces_[2].set_value(command_motor3);
+        command_interfaces_[3].set_value(command_motor4);
+
+        ///TODO: Compute wheels velocities
         return controller_interface::return_type::OK;
     }
 
     bool GM6020Controller::reset() {
+        // release the old queue
+        std::queue<rm_interfaces::msg::GM6020Msg> empty;
+        std::swap(previous_commands_, empty);
+
         subscriber_is_active_ = false;
         cmd_sub_.reset();
         received_cmd_msg_ptr_.reset();

@@ -31,7 +31,9 @@ target_link_libraries(
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(${PROJECT_NAME} PRIVATE "GM6020_BUILDING_DLL")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "GM6020_CONTROLLER_BUILDING_DLL")
+
+pluginlib_export_plugin_description_file(controller_interface gm6020_controller_plugin.xml)
 
 if(BUILD_TESTING) 
   find_package(ament_lint_auto REQUIRED)
