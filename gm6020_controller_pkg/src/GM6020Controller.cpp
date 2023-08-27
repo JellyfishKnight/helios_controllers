@@ -186,11 +186,11 @@ namespace helios_control {
             realtime_gm6020_pub_->unlockAndPublish();
         }
         // set output 
-        command_interfaces_[0].set_value(command_motor1);
-        command_interfaces_[1].set_value(command_motor2);
-        command_interfaces_[2].set_value(command_motor3);
-        command_interfaces_[3].set_value(command_motor4);
-
+        // set a fixed value to test
+        command_interfaces_[0].set_value(3000);
+        command_interfaces_[1].set_value(3000);
+        command_interfaces_[2].set_value(3000);
+        command_interfaces_[3].set_value(3000);
         ///TODO: Compute wheels velocities
         return controller_interface::return_type::OK;
     }
