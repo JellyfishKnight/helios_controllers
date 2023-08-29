@@ -1,7 +1,7 @@
 gm6020_controller:
   motor_names: {
     type: string_array,
-    default_value: ["motor1", "motor2", "motor3", "motor4"],
+    default_value: ["gm6020_1", "gm6020_2", "gm6020_3", "gm6020_4"],
     description: "Link names of the motors",
   }
   motor_state_interfaces: {

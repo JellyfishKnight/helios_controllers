@@ -29,7 +29,7 @@ constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "gm6020/cmd_out";
 class GM6020Controller : public controller_interface::ControllerInterface {
 public:
     GM6020_CONTROLLER_PUBLIC
-    GM6020Controller();
+    GM6020Controller() = default;
 
     GM6020_CONTROLLER_PUBLIC
     controller_interface::CallbackReturn on_init() override;
