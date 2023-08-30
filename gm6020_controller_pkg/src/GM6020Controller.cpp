@@ -44,18 +44,6 @@ namespace helios_control {
         }
         cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
         use_stamped_cmd_ = params_.use_stamped_cmd;
-        // init speed limter
-        limiter_ = SpeedLimiter(
-            params_.linear.x.has_velocity_limits,
-            params_.linear.x.has_acceleration_limits,
-            params_.linear.x.has_jerk_limits,
-            params_.linear.x.min_velocity,
-            params_.linear.x.max_velocity,
-            params_.linear.x.min_acceleration,
-            params_.linear.x.max_acceleration,
-            params_.linear.x.min_jerk,
-            params_.linear.x.max_jerk
-        );
         if (!reset()) {
             return controller_interface::CallbackReturn::ERROR;
         }
@@ -66,7 +54,7 @@ namespace helios_control {
         realtime_gm6020_pub_ = std::make_shared<realtime_tools::RealtimePublisher<rm_interfaces::msg::GM6020Msg>>(
             limited_pub_
         );
-
+        speed_pub_ = get_node()->create_publisher<std_msgs::msg::Int16>("speed_wave", rclcpp::SystemDefaultsQoS());
         const rm_interfaces::msg::GM6020Msg empty_gm6020_msg;
         received_gm6020_ptr_.set(std::make_shared<rm_interfaces::msg::GM6020Msg>(empty_gm6020_msg));
 
@@ -130,67 +118,20 @@ namespace helios_control {
         //     }
         //     return controller_interface::return_type::OK;
         // }
-        // std::shared_ptr<rm_interfaces::msg::GM6020Msg> last_command_msg;
-        // received_gm6020_ptr_.get(last_command_msg);
-        // if (last_command_msg == nullptr) {
-        //     RCLCPP_WARN(logger_, "Command message received was a nullptr");
-        //     return controller_interface::return_type::ERROR;
-        // }
-        // const auto age_of_last_command = time - last_command_msg->header.stamp;
-        // // Brake if cmd has timeout, override the stored command
-        // if (age_of_last_command > cmd_timeout_) {
-        //     last_command_msg->motor_speed_1 = 0.0;
-        //     last_command_msg->motor_speed_2 = 0.0;
-        //     last_command_msg->motor_speed_3 = 0.0;
-        //     last_command_msg->motor_speed_4 = 0.0;
-        // }
-        // // command may be limited futher by SpeedLimit
-        // // without affecting the stored command
-        // rm_interfaces::msg::GM6020Msg command = *last_command_msg;
-        // double command_motor1 = command.motor_speed_1;
-        // double command_motor2 = command.motor_speed_2;
-        // double command_motor3 = command.motor_speed_3;
-        // double command_motor4 = command.motor_speed_4;
-
-        // previous_publish_timestamp_ = time;
-
-        // bool should_publish = false;
-        // try {
-        //     if (previous_publish_timestamp_ + publish_period_ < time) {
-        //         previous_publish_timestamp_ += publish_period_;
-        //         should_publish = true;
-        //     }
-        // } catch (std::runtime_error &) {
-        //     // Handle exceptions when the time source changes and initialize publish timestamp
-        //     previous_publish_timestamp_ = time;
-        //     should_publish = true;
-        // }
-        
-        // auto & last_command = previous_commands_.back();
-        // auto & second_to_last_command = previous_commands_.front();
-        // limiter_.limit(command_motor1, last_command.motor_speed_1, second_to_last_command.motor_speed_1, period.seconds());
-        // limiter_.limit(command_motor2, last_command.motor_speed_2, second_to_last_command.motor_speed_2, period.seconds());
-        // limiter_.limit(command_motor3, last_command.motor_speed_3, second_to_last_command.motor_speed_3, period.seconds());
-        // limiter_.limit(command_motor4, last_command.motor_speed_4, second_to_last_command.motor_speed_4, period.seconds());
-        // previous_commands_.pop();
-        // previous_commands_.emplace(command);
-
-        // // Publish limited velocity
-        // if (realtime_gm6020_pub_->trylock()) {
-        //     auto & limited_velocity_command = realtime_gm6020_pub_->msg_;
-        //     limited_velocity_command.header.stamp = time;
-        //     limited_velocity_command.motor_speed_1 = command_motor1;
-        //     limited_velocity_command.motor_speed_2 = command_motor2;
-        //     limited_velocity_command.motor_speed_3 = command_motor3;
-        //     limited_velocity_command.motor_speed_4 = command_motor4;
-        //     realtime_gm6020_pub_->unlockAndPublish();
-        // }
+        control_toolbox::PidROS pid(this->get_node(), "pid_ros");
+        pid.initPid(20, 0, 0, 10000, -10000, false);
+        auto speed = state_interfaces_[5].get_value();
+        auto effort = pid.computeCommand(1000 - speed, period);
+        std_msgs::msg::Int16 speed_msg;
+        speed_msg.data = speed;
+        speed_pub_->publish(speed_msg);
         // set output 
         // set a fixed value to test
-        command_interfaces_[0].set_value(3000);
-        command_interfaces_[1].set_value(3000);
-        command_interfaces_[2].set_value(3000);
-        command_interfaces_[3].set_value(3000);
+        command_interfaces_[0].set_value(effort);
+        command_interfaces_[1].set_value(effort);
+        command_interfaces_[2].set_value(effort);
+        command_interfaces_[3].set_value(effort);
+        RCLCPP_INFO(logger_, "effort: %f", effort);
         ///TODO: Compute wheels velocities
         return controller_interface::return_type::OK;
     }

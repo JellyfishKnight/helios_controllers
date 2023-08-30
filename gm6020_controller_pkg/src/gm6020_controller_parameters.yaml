@@ -34,6 +34,11 @@ gm6020_controller:
     default_value: 60.0, # Hz
     description: "Publishing rate (Hz) of the odometry and TF messages.",
   }
+  update_rate: {
+    type: int,
+    default_value: 1000, #Hz
+    description: "Update rate (Hz) of the controller",
+  }
   linear:
     x:
       has_velocity_limits: {

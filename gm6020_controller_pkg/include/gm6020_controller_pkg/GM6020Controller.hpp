@@ -8,8 +8,11 @@
 #include "rm_interfaces/msg/gm6020_msg.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
+#include "std_msgs/std_msgs/msg/int16.hpp"
+
+#include "control_toolbox/pid_ros.hpp"
+
 #include "visibility_control.h"
-#include "SpeedLimiter.hpp"
 
 #include <vector>
 #include <queue>
@@ -58,6 +61,8 @@ protected:
     std::shared_ptr<realtime_tools::RealtimePublisher<rm_interfaces::msg::GM6020Msg>> realtime_gm6020_pub_;
     rclcpp::Publisher<rm_interfaces::msg::GM6020Msg>::SharedPtr limited_pub_;
 
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr speed_pub_;
+
     realtime_tools::RealtimeBox<std::shared_ptr<rm_interfaces::msg::GM6020Msg>> received_gm6020_ptr_;
     
     rclcpp::Subscription<rm_interfaces::msg::GM6020Msg>::SharedPtr cmd_sub_;
@@ -75,8 +80,6 @@ protected:
 
     // previous 2 commands
     std::queue<rm_interfaces::msg::GM6020Msg> previous_commands_;
-
-    SpeedLimiter limiter_;
 
     bool is_halted_ = false;
     bool use_stamped_cmd_ = true;
