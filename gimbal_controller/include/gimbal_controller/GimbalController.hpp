@@ -1,17 +1,15 @@
 #pragma once 
-
 #include "rclcpp/rclcpp.hpp"
 #include "controller_interface/controller_interface.hpp"
 #include "realtime_tools/realtime_buffer.h"
 #include "realtime_tools/realtime_box.h"
 #include "realtime_tools/realtime_publisher.h"
-// #include "helios_rs_interfaces/msg/gm6020_msg.hpp"
+
 #include "rclcpp_lifecycle/state.hpp"
 
 #include "control_toolbox/pid_ros.hpp"
 
 #include "visibility_control.h"
-
 #include <vector>
 #include <queue>
 #include <string>
@@ -23,7 +21,7 @@
 
 namespace helios_control {
 
-class GIMBALController : public controller_interface::ControllerInterface {
+class GimbalController : public controller_interface::ControllerInterface {
 public:
     GIMBAL_CONTROLLER_PUBLIC
     GimbalController() = default;
@@ -52,35 +50,35 @@ public:
     GIMBAL_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
-    std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::GIMBALMsg>> realtime_gm6020_pub_;
-    rclcpp::Publisher<helios_rs_interfaces::msg::GIMBALMsg>::SharedPtr limited_pub_;
+    // std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::GIMBALMsg>> realtime_gm6020_pub_;
+    // rclcpp::Publisher<helios_rs_interfaces::msg::GIMBALMsg>::SharedPtr limited_pub_;
 
-    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::GIMBALMsg>> received_gm6020_ptr_;
+    // realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::GIMBALMsg>> received_gm6020_ptr_;
     
-    rclcpp::Subscription<helios_rs_interfaces::msg::GIMBALMsg>::SharedPtr cmd_sub_;
-    std::shared_ptr<helios_rs_interfaces::msg::GIMBALMsg> received_cmd_msg_ptr_;
-    // Parameters from ROS for gm6020_controller
-    std::shared_ptr<gm6020_controller::ParamListener> param_listener_;
-    gm6020_controller::Params params_;
+    // rclcpp::Subscription<helios_rs_interfaces::msg::GIMBALMsg>::SharedPtr cmd_sub_;
+    // std::shared_ptr<helios_rs_interfaces::msg::GIMBALMsg> received_cmd_msg_ptr_;
+    // // Parameters from ROS for gm6020_controller
+    // std::shared_ptr<gm6020_controller::ParamListener> param_listener_;
+    // gm6020_controller::Params params_;
 
-    // publish rate limiter
-    double publish_rate_ = 1000.0;
-    rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
-    rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
-    // Timeout to consider cmd commands old
-    std::chrono::milliseconds cmd_timeout_{500};
+    // // publish rate limiter
+    // double publish_rate_ = 1000.0;
+    // rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
+    // rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
+    // // Timeout to consider cmd commands old
+    // std::chrono::milliseconds cmd_timeout_{500};
 
-    // previous 2 commands
-    std::queue<helios_rs_interfaces::msg::GIMBALMsg> previous_commands_;
+    // // previous 2 commands
+    // std::queue<helios_rs_interfaces::msg::GIMBALMsg> previous_commands_;
 
-    bool is_halted_ = false;
-    bool use_stamped_cmd_ = true;
-    bool subscriber_is_active_ = false;
-    bool reset();
+    // bool is_halted_ = false;
+    // bool use_stamped_cmd_ = true;
+    // bool subscriber_is_active_ = false;
+    // bool reset();
 
-    void halt();
+    // void halt();
 
-    rclcpp::Logger logger_ = rclcpp::get_logger("GIMBAL_Controller");
+    rclcpp::Logger logger_ = rclcpp::get_logger("Gimbal_Controller");
 };
 
 
