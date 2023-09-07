@@ -50,22 +50,22 @@ namespace helios_control {
             return controller_interface::CallbackReturn::ERROR;
         }
         // create publisher
-        limited_pub_ = get_node()->create_publisher<rm_interfaces::msg::GM6020Msg>(
+        limited_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::GM6020Msg>(
             DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
         );
-        realtime_gm6020_pub_ = std::make_shared<realtime_tools::RealtimePublisher<rm_interfaces::msg::GM6020Msg>>(
+        realtime_gm6020_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::GM6020Msg>>(
             limited_pub_
         );
         speed_pub_ = get_node()->create_publisher<std_msgs::msg::Int16>("speed_wave", rclcpp::SystemDefaultsQoS());
         command_pub_ = get_node()->create_publisher<std_msgs::msg::Int16>("command_wave", rclcpp::SystemDefaultsQoS());
-        const rm_interfaces::msg::GM6020Msg empty_gm6020_msg;
-        received_gm6020_ptr_.set(std::make_shared<rm_interfaces::msg::GM6020Msg>(empty_gm6020_msg));
+        const helios_rs_interfaces::msg::GM6020Msg empty_gm6020_msg;
+        received_gm6020_ptr_.set(std::make_shared<helios_rs_interfaces::msg::GM6020Msg>(empty_gm6020_msg));
 
         // initialize command subscriber
         if (use_stamped_cmd_) {
-            cmd_sub_ = get_node()->create_subscription<rm_interfaces::msg::GM6020Msg>(
+            cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::GM6020Msg>(
                 DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
-                [this](const std::shared_ptr<rm_interfaces::msg::GM6020Msg> msg)->void {
+                [this](const std::shared_ptr<helios_rs_interfaces::msg::GM6020Msg> msg)->void {
                     if (!subscriber_is_active_) {
                         RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
                         return ;
@@ -150,7 +150,7 @@ namespace helios_control {
 
     bool GM6020Controller::reset() {
         // release the old queue
-        std::queue<rm_interfaces::msg::GM6020Msg> empty;
+        std::queue<helios_rs_interfaces::msg::GM6020Msg> empty;
         std::swap(previous_commands_, empty);
 
         subscriber_is_active_ = false;
