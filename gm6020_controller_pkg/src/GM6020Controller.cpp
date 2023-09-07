@@ -1,6 +1,8 @@
 #include "GM6020Controller.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 
+#define Speed 300
+
 namespace helios_control {
 
     controller_interface::CallbackReturn GM6020Controller::on_init() {
@@ -55,6 +57,7 @@ namespace helios_control {
             limited_pub_
         );
         speed_pub_ = get_node()->create_publisher<std_msgs::msg::Int16>("speed_wave", rclcpp::SystemDefaultsQoS());
+        command_pub_ = get_node()->create_publisher<std_msgs::msg::Int16>("command_wave", rclcpp::SystemDefaultsQoS());
         const rm_interfaces::msg::GM6020Msg empty_gm6020_msg;
         received_gm6020_ptr_.set(std::make_shared<rm_interfaces::msg::GM6020Msg>(empty_gm6020_msg));
 
@@ -118,19 +121,28 @@ namespace helios_control {
         //     }
         //     return controller_interface::return_type::OK;
         // }
-        control_toolbox::PidROS pid(this->get_node(), "pid_ros");
-        pid.initPid(20, 0, 0, 10000, -10000, false);
-        auto speed = state_interfaces_[5].get_value();
-        auto effort = pid.computeCommand(1000 - speed, period);
+        control_toolbox::PidROS pid(this->get_node(), "");
+        pid.initPid(10, 0, 0, 10000, -10000, false);
+        auto speed = state_interfaces_[1].get_value();
+        auto angle = state_interfaces_[0].get_value();
+
+        // auto effort = pid.computeCommand(100 - speed, period);
         std_msgs::msg::Int16 speed_msg;
         speed_msg.data = speed;
         speed_pub_->publish(speed_msg);
+        // speed_msg.data = effort;
+        
+        static int effort = 500;
+
+        // command_pub_->publish(speed_msg);
         // set output 
         // set a fixed value to test
         command_interfaces_[0].set_value(effort);
-        command_interfaces_[1].set_value(effort);
-        command_interfaces_[2].set_value(effort);
-        command_interfaces_[3].set_value(effort);
+        command_interfaces_[1].set_value(Speed);
+        command_interfaces_[2].set_value(Speed);
+        command_interfaces_[3].set_value(Speed);
+        if (effort != 250) 
+            effort--;
         RCLCPP_INFO(logger_, "effort: %f", effort);
         ///TODO: Compute wheels velocities
         return controller_interface::return_type::OK;
