@@ -1,0 +1,21 @@
+gimbal_controller:
+  motor_names: {
+    type: string_array,
+    default_value: ["pitch_motor", "yaw_motor"],
+    description: "Link names of the motors",
+  }
+  motor_state_interfaces: {
+    type: string_array,
+    default_value: ["angle", "speed", "effort", "temperature"],
+    description: "Names of state interfaces of the motors",
+  }
+  publish_rate: {
+    type: double,
+    default_value: 1000,
+    description: "Publish rate of states the controller got",
+  }
+  cmd_timeout: {
+    type: int,
+    default_value: 200,   #ms
+    description: "the time interval between two commands",
+  }
