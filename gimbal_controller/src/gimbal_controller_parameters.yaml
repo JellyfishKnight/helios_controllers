@@ -19,3 +19,8 @@ gimbal_controller:
     default_value: 200,   #ms
     description: "the time interval between two commands",
   }
+  update_rate: {
+    type: int,
+    default_value: 1000, #rate
+    description: "the update rate of gimbal controller",
+  }
