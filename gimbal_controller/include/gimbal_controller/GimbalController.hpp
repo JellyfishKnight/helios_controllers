@@ -68,7 +68,7 @@ protected:
     realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::SendData>> received_gimbal_cmd_ptr_;
 
     rclcpp::Subscription<helios_rs_interfaces::msg::SendData>::SharedPtr cmd_sub_;
-    // Parameters from ROS for gm6020_controller
+    // Parameters from ROS for gimbal_controller
     std::shared_ptr<gimbal_controller::ParamListener> param_listener_;
     gimbal_controller::Params params_;
 
