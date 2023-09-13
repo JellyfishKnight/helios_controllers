@@ -27,8 +27,8 @@
 
 namespace helios_control {
 
-#define ANGLE_MODE 2
-#define SPEED_MODE 1
+#define ANGLE_MODE false
+#define SPEED_MODE true
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "gimbal/cmd";
 constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "gimbal/cmd_out";

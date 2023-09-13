@@ -7,8 +7,10 @@
 #include <rclcpp/logging.hpp>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace helios_control {
+
 
 controller_interface::CallbackReturn GimbalController::on_init() {
     try {
@@ -24,7 +26,9 @@ controller_interface::CallbackReturn GimbalController::on_init() {
 controller_interface::InterfaceConfiguration GimbalController::command_interface_configuration() const {
     std::vector<std::string> conf_names;
     for (const auto& joint_name : params_.motor_names) {
-        conf_names.push_back(joint_name + "/" + "current");
+        for (auto & command_name : params_.motor_command_interfaces) {
+            conf_names.push_back(joint_name + "/" + command_name);
+        }
     }
     return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
 }
@@ -45,10 +49,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             params_ = param_listener_->get_params();
             RCLCPP_INFO(logger_, "Parameters were updated");
         }
-        if (params_.motor_names.size() != 4) {
-            RCLCPP_ERROR(logger_, "The number of motors is not 4");
-            return controller_interface::CallbackReturn::ERROR;
-        }
+        // if (params_.motor_names.size() != 4) {
+        //     RCLCPP_ERROR(logger_, "The number of motors is not 4");
+        //     return controller_interface::CallbackReturn::ERROR;
+        // }
         cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
         if (!reset()) {
             return controller_interface::CallbackReturn::ERROR;
@@ -128,11 +132,11 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
 
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
-    if (age_of_last_command > cmd_timeout_) {
-        last_command_msg->pitch = 0;
-        last_command_msg->yaw = 0;
-        return controller_interface::return_type::OK;
-    }
+    // if (age_of_last_command > cmd_timeout_) {
+    //     last_command_msg->pitch = 0;
+    //     last_command_msg->yaw = 0;
+    //     return controller_interface::return_type::OK;
+    // }
 
     try {
         if (previous_publish_timestamp_ + publish_period_ < time) {
@@ -145,26 +149,49 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         should_publish_ = true;
     }
     // publish gimbal states
-    if (should_publish_) {
-        if (realtime_gimbal_state_pub_->trylock()) {
-            auto & state_msg = realtime_gimbal_state_pub_->msg_;
-            state_msg.header.stamp = time;
-            if (!export_state_interfaces(state_msg)) {
-                RCLCPP_WARN(logger_, "Could not find some state interfaces");
-            }
-            realtime_gimbal_state_pub_->unlockAndPublish();
-        }
-    }
+    // if (should_publish_) {
+    //     if (realtime_gimbal_state_pub_->trylock()) {
+    //         auto & state_msg = realtime_gimbal_state_pub_->msg_;
+    //         state_msg.header.stamp = time;
+    //         if (!export_state_interfaces(state_msg)) {
+    //             RCLCPP_WARN(logger_, "Could not find some state interfaces");
+    //         }
+    //         realtime_gimbal_state_pub_->unlockAndPublish();
+    //     }
+    // }
+    // command_interfaces_[0].set_value(1); // can
+    // command_interfaces_[1].set_value(0x1ff); // motor type
+    // command_interfaces_[2].set_value(2); // motor id
+    // command_interfaces_[3].set_value(100); // motor value
+
+    // command_interfaces_[4].set_value(1); // can
+    // command_interfaces_[5].set_value(0x1ff); // motor type
+    // command_interfaces_[6].set_value(3); // motor id
+    // command_interfaces_[7].set_value(params_.value); // motor value
+
     // set output 
     for (auto &command : command_interfaces_) {
-        if (command.get_name() == "gimbal/pitch_value") {
-            command.set_value(last_command_msg->pitch);
-        } else if (command.get_name() == "gimbal/yaw_motor") {
-            command.set_value(last_command_msg->yaw);
-        } else if (command.get_name() == "gimbal/pitch_mode") {
-            command.set_value(ANGLE_MODE);
-        } else if (command.get_name() == "gimbal/yaw_mode") {
-            command.set_value(ANGLE_MODE);
+        if (command.get_prefix_name() == params_.motor_names[0]) {
+            if (command.get_interface_name() == params_.motor_command_interfaces[0]) {
+                command.set_value(1);
+            } else if (command.get_interface_name() == params_.motor_command_interfaces[1]) {
+                command.set_value(0x1ff);
+            } else if (command.get_interface_name() == params_.motor_command_interfaces[2]) {
+                command.set_value(2);
+            } else if (command.get_interface_name() == params_.motor_command_interfaces[3]) {
+                command.set_value(5000);
+            }
+        }
+        if (command.get_prefix_name() == params_.motor_names[1]) {
+            if (command.get_interface_name() == params_.motor_command_interfaces[0]) {
+                command.set_value(1);
+            } else if (command.get_interface_name() == params_.motor_command_interfaces[1]) {
+                command.set_value(0x1ff);
+            } else if (command.get_interface_name() == params_.motor_command_interfaces[2]) {
+                command.set_value(3);
+            } else if (command.get_interface_name() == params_.motor_command_interfaces[3]) {
+                command.set_value(params_.value);
+            }
         }
     }
     return controller_interface::return_type::OK;
@@ -204,6 +231,15 @@ bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::Gimbal
     } else {
         return false;
     }
+}
+
+bool GimbalController::reset(){
+
+    return true;
+}
+
+void GimbalController::halt() {
+
 }
 
 } // namespace helios_control

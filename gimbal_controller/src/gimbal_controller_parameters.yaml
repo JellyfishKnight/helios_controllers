@@ -1,12 +1,17 @@
 gimbal_controller:
   motor_names: {
     type: string_array,
-    default_value: ["pitch_motor", "yaw_motor"],
+    default_value: ["chassis_1", "chassis_2"],
     description: "Link names of the motors",
+  }
+  motor_command_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "motor_value"],
+    description: "Names of command interfaces of the motors",
   }
   motor_state_interfaces: {
     type: string_array,
-    default_value: ["angle", "speed", "effort", "temperature"],
+    default_value: ["can_id", "motor_type", "motor_id", "position", "velocity", "current", "temperature"],
     description: "Names of state interfaces of the motors",
   }
   publish_rate: {
@@ -23,4 +28,9 @@ gimbal_controller:
     type: int,
     default_value: 1000, #rate
     description: "the update rate of gimbal controller",
+  }
+  value: {
+    type: int,
+    default_value: 3000,
+    description: "the value of gimbal controller",
   }
