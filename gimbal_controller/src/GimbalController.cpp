@@ -53,6 +53,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         //     RCLCPP_ERROR(logger_, "The number of motors is not 4");
         //     return controller_interface::CallbackReturn::ERROR;
         // }
+
         cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
         if (!reset()) {
             return controller_interface::CallbackReturn::ERROR;
@@ -122,6 +123,11 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
+    // update params if they have changed
+    if (param_listener_->is_old(params_)) {
+        params_ = param_listener_->get_params();
+        RCLCPP_DEBUG(logger_, "Parameters were updated");
+    }
     // check if command message if nullptr
     std::shared_ptr<helios_rs_interfaces::msg::SendData> last_command_msg;
     received_gimbal_cmd_ptr_.get(last_command_msg);
@@ -159,38 +165,28 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     //         realtime_gimbal_state_pub_->unlockAndPublish();
     //     }
     // }
-    // command_interfaces_[0].set_value(1); // can
-    // command_interfaces_[1].set_value(0x1ff); // motor type
-    // command_interfaces_[2].set_value(2); // motor id
-    // command_interfaces_[3].set_value(100); // motor value
-
-    // command_interfaces_[4].set_value(1); // can
-    // command_interfaces_[5].set_value(0x1ff); // motor type
-    // command_interfaces_[6].set_value(3); // motor id
-    // command_interfaces_[7].set_value(params_.value); // motor value
-
-    // set output 
+    // set command values
     for (auto &command : command_interfaces_) {
         if (command.get_prefix_name() == params_.motor_names[0]) {
             if (command.get_interface_name() == params_.motor_command_interfaces[0]) {
-                command.set_value(1);
+                command.set_value(params_.yaw.yaw_can_id);
             } else if (command.get_interface_name() == params_.motor_command_interfaces[1]) {
-                command.set_value(0x1ff);
+                command.set_value(params_.yaw.yaw_motor_type);
             } else if (command.get_interface_name() == params_.motor_command_interfaces[2]) {
-                command.set_value(2);
+                command.set_value(params_.yaw.yaw_motor_id);
             } else if (command.get_interface_name() == params_.motor_command_interfaces[3]) {
-                command.set_value(5000);
+                command.set_value(params_.yaw.yaw_angle);
             }
         }
         if (command.get_prefix_name() == params_.motor_names[1]) {
             if (command.get_interface_name() == params_.motor_command_interfaces[0]) {
-                command.set_value(1);
+                command.set_value(params_.pitch.pitch_can_id);
             } else if (command.get_interface_name() == params_.motor_command_interfaces[1]) {
-                command.set_value(0x1ff);
+                command.set_value( params_.pitch.pitch_motor_type);
             } else if (command.get_interface_name() == params_.motor_command_interfaces[2]) {
-                command.set_value(3);
+                command.set_value(params_.pitch.pitch_motor_id);
             } else if (command.get_interface_name() == params_.motor_command_interfaces[3]) {
-                command.set_value(params_.value);
+                command.set_value(params_.pitch.pitch_angle);
             }
         }
     }

@@ -1,7 +1,7 @@
 gimbal_controller:
   motor_names: {
     type: string_array,
-    default_value: ["chassis_1", "chassis_2"],
+    default_value: ["yaw", "pitch"],
     description: "Link names of the motors",
   }
   motor_command_interfaces: {
@@ -29,8 +29,45 @@ gimbal_controller:
     default_value: 1000, #rate
     description: "the update rate of gimbal controller",
   }
-  value: {
-    type: int,
-    default_value: 3000,
-    description: "the value of gimbal controller",
-  }
+  yaw: 
+    yaw_can_id: {
+      type: int,
+      default_value: 1,
+      description: "the can id of yaw motor",
+    }
+    yaw_motor_type: {
+      type: int,
+      default_value: 0x1ff,
+      description: "the motor type of yaw motor",
+    }
+    yaw_motor_id: {
+      type: int,
+      default_value: 1,
+      description: "the motor id of yaw motor",
+    }
+    yaw_angle: {
+      type: int,
+      default_value: 0,
+      description: "the yaw angle of gimbal",
+    }
+  pitch:
+    pitch_can_id: {
+      type: int,
+      default_value: 1,
+      description: "the can id of pitch motor",
+    }
+    pitch_motor_type: {
+      type: int,
+      default_value: 0x1ff,
+      description: "the motor type of pitch motor",
+    }
+    pitch_motor_id: {
+      type: int,
+      default_value: 2,
+      description: "the motor id of pitch motor",
+    }
+    pitch_angle: {
+      type: int,
+      default_value: 0,
+      description: "the pitch angle of gimbal",
+    }
