@@ -2,6 +2,7 @@
 
 #include "GimbalController.hpp"
 #include <helios_rs_interfaces/msg/detail/gimbal_state__struct.hpp>
+#include <helios_rs_interfaces/msg/detail/motor_states__struct.hpp>
 #include <helios_rs_interfaces/msg/detail/send_data__struct.hpp>
 #include <memory>
 #include <rclcpp/logging.hpp>
@@ -59,10 +60,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             return controller_interface::CallbackReturn::ERROR;
         }
         // create publisher
-        state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::GimbalState>(
+        state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
             DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
         );
-        realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::GimbalState>>(
+        realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
             state_pub_
         );
         const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
@@ -193,40 +194,10 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     return controller_interface::return_type::OK;
 }
 
-bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::GimbalState& state_msg) {
-    bool flags[8] = {false, false, false, false, false, false, false, false};
-    for (auto & state : state_interfaces_) {
-        if (state.get_name() == "pitch_angle") {
-            state_msg.pitch_angle = state.get_value();
-            flags[0] = true;
-        } else if (state.get_name() == "yaw_angle") {
-            state_msg.yaw_angle = state.get_value();
-            flags[1] = true;
-        } else if (state.get_name() == "pitch_speed") {
-            state_msg.pitch_speed = state.get_value();
-            flags[2] = true;
-        } else if (state.get_name() == "yaw_speed") {
-            state_msg.yaw_speed = state.get_value();
-            flags[3] = true;
-        } else if (state.get_name() == "pitch_current") {
-            state_msg.pitch_current = state.get_value();
-            flags[4] = true;
-        } else if (state.get_name() == "yaw_current") {
-            state_msg.yaw_current = state.get_value();
-            flags[5] = true;
-        } else if (state.get_name() == "pitch_temperature") {
-            state_msg.pitch_temperature = state.get_value();
-            flags[6] = true;
-        } else if (state.get_name() == "yaw_temperature") {
-            state_msg.yaw_temperature = state.get_value();
-            flags[7] = true;
-        }
-    }
-    if (flags[0] && flags[1] && flags[2] && flags[3] && flags[4] && flags[5] && flags[6] && flags[7]) {
-        return true;
-    } else {
-        return false;
-    }
+bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
+    ///TODO: export state interfaces
+    
+    return true;
 }
 
 bool GimbalController::reset(){

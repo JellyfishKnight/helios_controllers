@@ -1,0 +1,5 @@
+omnidirectional_controller:
+  type: {
+    type: string,
+    default_value: "omnidirectional_controller/OmnidirectionalController"
+  }
