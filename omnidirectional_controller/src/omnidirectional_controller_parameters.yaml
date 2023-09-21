@@ -1,5 +1,31 @@
 omnidirectional_controller:
-  type: {
-    type: string,
-    default_value: "omnidirectional_controller/OmnidirectionalController"
+  motor_names: {
+    type: string_array,
+    default_value: ["front_left", "front_right", "back_left", "back_right"],
+    description: "Link names of the motors",
+  }
+  motor_command_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "motor_value"],
+    description: "Names of command interfaces of the motors",
+  }
+  motor_state_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "position", "velocity", "current", "temperature"],
+    description: "Names of state interfaces of the motors",
+  }
+  publish_rate: {
+    type: double,
+    default_value: 1000,
+    description: "Publish rate of states the controller got",
+  }
+  cmd_timeout: {
+    type: int,
+    default_value: 200,   #ms
+    description: "the time interval between two commands",
+  }
+  update_rate: {
+    type: int,
+    default_value: 1000, #rate
+    description: "the update rate of gimbal controller",
   }
