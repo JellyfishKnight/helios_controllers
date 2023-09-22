@@ -8,6 +8,7 @@
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -21,6 +22,15 @@ controller_interface::CallbackReturn GimbalController::on_init() {
     } catch (const std::exception &e) {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
+    }
+    for (int i = 0; i < params_.motor_names.size(); i++) {
+        MotorCmd cmd = {
+            .can_id = params_.motor_commands[i * 4],
+            .motor_type = params_.motor_commands[i * 4 + 1],
+            .motor_id = params_.motor_commands[i * 4 + 2],
+            .value = params_.motor_commands[i * 4 + 3]
+        };
+        cmd_map_.emplace(std::pair<std::string, MotorCmd>(params_.motor_names[i], cmd));
     }
     return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -168,30 +178,22 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     //     }
     // }
     // set command values
-    for (auto &command : command_interfaces_) {
-        if (command.get_prefix_name() == params_.motor_names[0]) {
-            if (command.get_interface_name() == params_.motor_command_interfaces[0]) {
-                command.set_value(params_.yaw.yaw_can_id);
-            } else if (command.get_interface_name() == params_.motor_command_interfaces[1]) {
-                command.set_value(params_.yaw.yaw_motor_type);
-            } else if (command.get_interface_name() == params_.motor_command_interfaces[2]) {
-                command.set_value(params_.yaw.yaw_motor_id);
-            } else if (command.get_interface_name() == params_.motor_command_interfaces[3]) {
-                command.set_value(params_.yaw.yaw_angle);
-            }
-        }
-        if (command.get_prefix_name() == params_.motor_names[1]) {
-            if (command.get_interface_name() == params_.motor_command_interfaces[0]) {
-                command.set_value(params_.pitch.pitch_can_id);
-            } else if (command.get_interface_name() == params_.motor_command_interfaces[1]) {
-                command.set_value( params_.pitch.pitch_motor_type);
-            } else if (command.get_interface_name() == params_.motor_command_interfaces[2]) {
-                command.set_value(params_.pitch.pitch_motor_id);
-            } else if (command.get_interface_name() == params_.motor_command_interfaces[3]) {
-                command.set_value(params_.pitch.pitch_angle);
+    // convert into command_interfaces
+    for (int i = 0; i < command_interfaces_.size(); i++) {
+        auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+        if (motor_cmd != cmd_map_.end()) {
+            if (command_interfaces_[i].get_interface_name() == "can_id") {
+                command_interfaces_[i].set_value(motor_cmd->second.can_id);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_type);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_id);
+            } else if (command_interfaces_[i].get_interface_name() == "value") {
+                command_interfaces_[i].set_value(motor_cmd->second.value);
             }
         }
     }
+
     return controller_interface::return_type::OK;
 }
 

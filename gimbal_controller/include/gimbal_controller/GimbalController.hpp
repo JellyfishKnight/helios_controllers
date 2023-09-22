@@ -17,6 +17,7 @@
 
 #include "visibility_control.h"
 #include <helios_rs_interfaces/msg/detail/motor_states__struct.hpp>
+#include <map>
 #include <vector>
 #include <queue>
 #include <string>
@@ -33,6 +34,13 @@ namespace helios_control {
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "gimbal/cmd";
 constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "gimbal/cmd_out";
+
+typedef struct MotorCmd {
+    int can_id;
+    int motor_type;
+    int motor_id;
+    int value;
+}MotorCmd;
 
 class GimbalController : public controller_interface::ControllerInterface {
 public:
@@ -82,6 +90,10 @@ protected:
 
     // // previous 2 commands
     // std::queue<helios_rs_interfaces::msg::GIMBALMsg> previous_commands_;
+
+    // pid controllers
+    std::map<std::string, MotorCmd> cmd_map_;
+
 
     bool should_publish_ = false;
     /**
