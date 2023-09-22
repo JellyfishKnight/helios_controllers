@@ -23,14 +23,13 @@ controller_interface::CallbackReturn GimbalController::on_init() {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
     }
+    MotorCmd temp;
     for (int i = 0; i < params_.motor_names.size(); i++) {
-        MotorCmd cmd = {
-            .can_id = params_.motor_commands[i * 4],
-            .motor_type = params_.motor_commands[i * 4 + 1],
-            .motor_id = params_.motor_commands[i * 4 + 2],
-            .value = params_.motor_commands[i * 4 + 3]
-        };
-        cmd_map_.emplace(std::pair<std::string, MotorCmd>(params_.motor_names[i], cmd));
+        temp.can_id = params_.motor_commands[i * 4];
+        temp.motor_type = params_.motor_commands[i * 4 + 1];
+        temp.motor_id = params_.motor_commands[i * 4 + 2];
+        temp.value = params_.motor_commands[i * 4 + 3];
+        cmd_map_.emplace(std::pair<std::string, MotorCmd>(params_.motor_names[i], temp));
     }
     return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -150,11 +149,11 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
 
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
-    // if (age_of_last_command > cmd_timeout_) {
-    //     last_command_msg->pitch = 0;
-    //     last_command_msg->yaw = 0;
-    //     return controller_interface::return_type::OK;
-    // }
+    if (age_of_last_command > cmd_timeout_) {
+        last_command_msg->pitch = 0;
+        last_command_msg->yaw = 0;
+        return controller_interface::return_type::OK;
+    }
 
     try {
         if (previous_publish_timestamp_ + publish_period_ < time) {
@@ -167,16 +166,16 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         should_publish_ = true;
     }
     // publish gimbal states
-    // if (should_publish_) {
-    //     if (realtime_gimbal_state_pub_->trylock()) {
-    //         auto & state_msg = realtime_gimbal_state_pub_->msg_;
-    //         state_msg.header.stamp = time;
-    //         if (!export_state_interfaces(state_msg)) {
-    //             RCLCPP_WARN(logger_, "Could not find some state interfaces");
-    //         }
-    //         realtime_gimbal_state_pub_->unlockAndPublish();
-    //     }
-    // }
+    if (should_publish_) {
+        if (realtime_gimbal_state_pub_->trylock()) {
+            auto & state_msg = realtime_gimbal_state_pub_->msg_;
+            state_msg.header.stamp = time;
+            if (!export_state_interfaces(state_msg)) {
+                RCLCPP_WARN(logger_, "Could not find some state interfaces");
+            }
+            realtime_gimbal_state_pub_->unlockAndPublish();
+        }
+    }
     // set command values
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {

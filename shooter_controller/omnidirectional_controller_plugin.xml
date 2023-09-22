@@ -1,0 +1,7 @@
+<library path="shooter_controller">
+    <class name="shooter_controller/ShooterController" type="helios_control::ShooterController" base_class_type="controller_interface::ControllerInterface">
+        <description>
+            shooter controller
+        </description>
+    </class>
+</library>
