@@ -40,6 +40,13 @@ constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/chassis/cmd_vel_out";
 using Params = omnidirectional_controller::Params;
 using ParamsListener = omnidirectional_controller::ParamListener;
 
+typedef struct MotorCmd {
+    int can_id;
+    int motor_type;
+    int motor_id;
+    int value;
+}MotorCmd;
+
 class OmnidirectionalController : public controller_interface::ControllerInterface {
 public:
     OMNIDIRECTIONAL_CONTROLLER_PUBLIC
@@ -93,12 +100,12 @@ protected:
     // PID class
     std::map<std::string, math_utilities::PID> position_pids_;
     std::map<std::string, math_utilities::PID> velocity_pids_;
+    int pid_cnt_ = 0;
+    std::map<std::string, double> wheel_res_;
+    std::map<std::string, MotorCmd> cmd_map_;
     // velocity solver
     math_utilities::OmnidirectionalSolver velocity_solver_;
-    double front_left_v_;
-    double front_right_v_;
-    double back_left_v_;
-    double back_right_v_;
+    std::vector<double> wheel_velocities_;
     /**
      * @brief Convert the current state of the chassis from state_interfaces to a ROS message
      * @param state_msg The message to be filled

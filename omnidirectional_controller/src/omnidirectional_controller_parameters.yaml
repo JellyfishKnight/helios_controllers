@@ -1,4 +1,9 @@
 omnidirectional_controller:
+  motor_number: {
+    type: int,
+    default_value: 4,
+    description: "Number of motors",
+  }
   motor_names: {
     type: string_array,
     default_value: ["front_left", "front_right", "back_left", "back_right"],
@@ -8,6 +13,36 @@ omnidirectional_controller:
     type: string_array,
     default_value: ["can_id", "motor_type", "motor_id", "motor_value"],
     description: "Names of command interfaces of the motors",
+  }
+  motor_commands: {
+    type: double_array,
+    default_value: 
+    [ 
+      0, 0, 0, 0, #1
+      0, 0, 0, 0, #2
+      0, 0, 0, 0, #3
+      0, 0, 0, 0, #4
+    ],
+  }
+  motor_pos_pid: {
+    type: double_array,
+    default_value: 
+    [
+      0.1, 0.0, 0.0, 0.0, #1
+      0.1, 0.0, 0.0, 0.0, #2
+      0.1, 0.0, 0.0, 0.0, #3
+      0.1, 0.0, 0.0, 0.0, #4
+    ],
+  }
+  motor_vel_pid: {
+    type: double_array,
+    default_value: 
+    [
+      0.1, 0.0, 0.0, 0.0, #1
+      0.1, 0.0, 0.0, 0.0, #2
+      0.1, 0.0, 0.0, 0.0, #3
+      0.1, 0.0, 0.0, 0.0, #4
+    ],
   }
   motor_state_interfaces: {
     type: string_array,
