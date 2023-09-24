@@ -2,9 +2,11 @@
 #include <asm-generic/errno.h>
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
+#include <math_utilities/MotorPacket.hpp>
 #include <math_utilities/PID.hpp>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace helios_control {
 
@@ -18,26 +20,39 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
     }
+    motor_number_ = static_cast<int>(params_.motor_names.size());
     // init params
-    MotorCmd temp;
-    math_utilities::PID pos_pid;
-    math_utilities::PID vel_pid;
-    for (int i = 0; i < params_.motor_names.size(); i++) {
-        temp.can_id = params_.motor_commands[i * 4];
-        temp.motor_type = params_.motor_commands[i * 4 + 1];
-        temp.motor_id = params_.motor_commands[i * 4 + 2];
-        temp.value = params_.motor_commands[i * 4 + 3];
-        cmd_map_.emplace(std::pair<std::string, MotorCmd>(params_.motor_names[i], temp));
-        pos_pid.set_pid_params(params_.motor_pos_pid[i * 4], 
-                               params_.motor_pos_pid[i * 4 + 1],
-                               params_.motor_pos_pid[i * 4 + 2],
-                               params_.motor_pos_pid[i * 4 + 3]);
-        vel_pid.set_pid_params(params_.motor_vel_pid[i * 4],
-                               params_.motor_vel_pid[i * 4 + 1],
-                               params_.motor_vel_pid[i * 4 + 2],
-                               params_.motor_vel_pid[i * 4 + 3]);
-        position_pids_.emplace(std::pair<std::string, math_utilities::PID>(params_.motor_names[i], pos_pid));
-        velocity_pids_.emplace(std::pair<std::string, math_utilities::PID>(params_.motor_names[i], vel_pid));
+    for (int i = 0; i < motor_number_; i++) {
+        // init pid
+        math_utilities::PID pos_pid;
+        math_utilities::PID vel_pid;
+        math_utilities::PID current_pid;
+        pos_pid.set_pid_params(params_.motor_pos_pid[i * motor_number_], 
+                                params_.motor_pos_pid[i * motor_number_ + 1],
+                                params_.motor_pos_pid[i * motor_number_ + 2],
+                                params_.motor_pos_pid[i * motor_number_ + 3]);
+        vel_pid.set_pid_params(params_.motor_vel_pid[i * motor_number_], 
+                                params_.motor_vel_pid[i * motor_number_ + 1],
+                                params_.motor_vel_pid[i * motor_number_ + 2],
+                                params_.motor_vel_pid[i * motor_number_ + 3]);
+        current_pid.set_pid_params(params_.motor_current_pid[i * motor_number_], 
+                                params_.motor_current_pid[i * motor_number_ + 1],
+                                params_.motor_current_pid[i * motor_number_ + 2],
+                                params_.motor_current_pid[i * motor_number_ + 3]);
+
+        math_utilities::MotorPacket motor_packet(
+            params_.motor_names[i],
+            params_.motor_mid_angle[i],
+            pos_pid,
+            vel_pid,
+            current_pid
+        );
+        motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
+        motor_packet.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
+        motor_packet.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
+        motor_packet.value_ = params_.motor_mid_angle[i];
+        // init map
+        cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
     return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -66,6 +81,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     // update parameters if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
+        motor_number_ = static_cast<int>(params_.motor_names.size());
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
     cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
@@ -140,19 +156,23 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
-        for (int i = 0; i < params_.motor_names.size(); i++) {
-            auto pos_pid = position_pids_[params_.motor_names[i]];
-            auto vel_pid = velocity_pids_[params_.motor_names[i]];
-            pos_pid.set_pid_params(params_.motor_pos_pid[i * 4], 
-                                   params_.motor_pos_pid[i * 4 + 1],
-                                   params_.motor_pos_pid[i * 4 + 2],
-                                   params_.motor_pos_pid[i * 4 + 3]);
-            vel_pid.set_pid_params(params_.motor_vel_pid[i * 4],
-                                   params_.motor_vel_pid[i * 4 + 1],
-                                   params_.motor_vel_pid[i * 4 + 2],
-                                   params_.motor_vel_pid[i * 4 + 3]);
-            position_pids_[params_.motor_names[i]] = pos_pid;
-            velocity_pids_[params_.motor_names[i]] = vel_pid;
+        motor_number_ = static_cast<int>(params_.motor_names.size());
+        for (int i = 0; i < motor_number_; i++) {
+            cmd_map_.find(params_.motor_names[i])->second.set_pid_current(
+                params_.motor_current_pid[i * motor_number_], 
+                params_.motor_current_pid[i * motor_number_ + 1], 
+                params_.motor_current_pid[i * motor_number_ + 2],
+                params_.motor_current_pid[i * motor_number_ + 3]);
+            cmd_map_.find(params_.motor_names[i])->second.set_pid_vel(
+                params_.motor_vel_pid[i * motor_number_], 
+                params_.motor_vel_pid[i * motor_number_ + 1], 
+                params_.motor_vel_pid[i * motor_number_ + 2],
+                params_.motor_vel_pid[i * motor_number_ + 3]);
+            cmd_map_.find(params_.motor_names[i])->second.set_pid_pos(
+                params_.motor_pos_pid[i * motor_number_], 
+                params_.motor_pos_pid[i * motor_number_ + 1], 
+                params_.motor_pos_pid[i * motor_number_ + 2],
+                params_.motor_pos_pid[i * motor_number_ + 3]);
         }
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
@@ -205,39 +225,22 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     pid_cnt_ += 1;
     auto state_msg = realtime_gimbal_state_pub_->msg_;
     // caculate pid
-    for (int i = 0; i < params_.motor_names.size(); i++) {
-        auto pos_pid = position_pids_[params_.motor_names[i]];
-        auto vel_pid = velocity_pids_[params_.motor_names[i]];
-        double wanted_v, pid_output;
-        wanted_v = wheel_velocities_[i];
-        // velocity pid
-        pid_output = vel_pid.pid_control(wanted_v - state_msg.motor_states[i].velocity);
-        if (pid_cnt_ >= 2) {
-            // position pid
-            pid_output = pos_pid.pid_control(pid_output - state_msg.motor_states[i].position);
-        }
-        // range limit
-        if (pid_output > 16384) {
-            pid_output = 16384;
-        } else if (pid_output < -16384) {
-            pid_output = -16384;
-        }
-        // set values
-        cmd_map_[params_.motor_names[i]].value = pid_output;
+    for (int i = 0; i < motor_number_; i++) {
+        cmd_map_.find(params_.motor_names[i])->second.value_ = 
+            cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(wheel_velocities_[i]);
     }
-    pid_cnt_ = pid_cnt_ >= 2 ? 0 : pid_cnt_;
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
             if (command_interfaces_[i].get_interface_name() == "can_id") {
-                command_interfaces_[i].set_value(motor_cmd->second.can_id);
+                command_interfaces_[i].set_value(motor_cmd->second.can_id_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_type);
+                command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_id);
+                command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
             } else if (command_interfaces_[i].get_interface_name() == "value") {
-                command_interfaces_[i].set_value(motor_cmd->second.value);
+                command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
         }
     }

@@ -1,5 +1,5 @@
 shooter_controller:
   motor_names: {
     type: string_array,
-    default: ['shooter_1', 'shooter_2', 'shooter_3', 'shooter_4', 'dial_1', 'dial_2'],
+    default_value: ['shooter_1', 'shooter_2', 'shooter_3', 'shooter_4', 'dial_1', 'dial_2'],
   }

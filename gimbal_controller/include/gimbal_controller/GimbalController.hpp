@@ -16,7 +16,6 @@
 #include "helios_rs_interfaces/msg/send_data.hpp"
 
 #include "visibility_control.h"
-#include <helios_rs_interfaces/msg/detail/motor_states__struct.hpp>
 #include <map>
 #include <vector>
 #include <queue>

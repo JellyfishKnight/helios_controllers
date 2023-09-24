@@ -2,12 +2,6 @@
 // Submodule of HeliosRobotSystem
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #include "GimbalController.hpp"
-#include <helios_rs_interfaces/msg/detail/gimbal_state__struct.hpp>
-#include <helios_rs_interfaces/msg/detail/motor_states__struct.hpp>
-#include <helios_rs_interfaces/msg/detail/send_data__struct.hpp>
-#include <memory>
-#include <rclcpp/logging.hpp>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>

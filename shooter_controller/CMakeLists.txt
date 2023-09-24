@@ -33,7 +33,7 @@ target_link_libraries(
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(${PROJECT_NAME} PRIVATE "SHOOTER_CONTROLLER_BUILDING_DLL")
 
-pluginlib_export_plugin_description_file(controller_interface omnidirectional_controller_plugin.xml)
+pluginlib_export_plugin_description_file(controller_interface shooter_controller_plugin.xml)
 
 if(BUILD_TESTING) 
   find_package(ament_lint_auto REQUIRED)
