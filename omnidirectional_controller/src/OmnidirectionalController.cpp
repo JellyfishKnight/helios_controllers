@@ -2,6 +2,7 @@
 #include <asm-generic/errno.h>
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
+#include <helios_rs_interfaces/msg/detail/motor_state__struct.hpp>
 #include <limits>
 #include <math_utilities/MotorPacket.hpp>
 #include <math_utilities/PID.hpp>
@@ -210,13 +211,14 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         should_publish_ = true;
     }
     // publish gimbal states
-    if (should_publish_) {
+    if (true) {
         if (realtime_gimbal_state_pub_->trylock()) {
             auto & state_msg = realtime_gimbal_state_pub_->msg_;
             state_msg.header.stamp = time;
             if (!export_state_interfaces(state_msg)) {
                 RCLCPP_WARN(logger_, "Could not find some state interfaces");
             }
+            RCLCPP_WARN(logger_, "Could not find some state interfaces");
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
@@ -228,9 +230,6 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     velocity_solver_.solve(*last_command_msg);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
-    for (int i = 0; i < motor_number_; i++) {
-            RCLCPP_ERROR(logger_, "motor%d value: %f", i, wheel_velocities_[i]);
-    }
     // set command values
     pid_cnt_ += 1;
     auto state_msg = realtime_gimbal_state_pub_->msg_;
@@ -238,6 +237,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
             cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(wheel_velocities_[i]);
+        RCLCPP_ERROR(logger_, "%s value: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -259,7 +259,13 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
     ///TODO: export state interfaces
-    
+    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
+    state_msg.header.frame_id = "chassis";
+    state_msg.header.stamp = this->get_node()->now();
+    for (int i = 0; i < motor_number_; i++) {
+        const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
+        motor_packet->second.set_state_msg(state_msg.motor_states[i]);
+    }
     return true;
 }
 
