@@ -32,8 +32,8 @@
 
 namespace helios_control {
 
-constexpr auto DEFAULT_COMMAND_TOPIC = "/chassis/cmd_vel";
-constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/chassis/cmd_vel_out";
+constexpr auto DEFAULT_COMMAND_TOPIC = "/cmd_vel";
+constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/cmd_vel_out";
 
 using Params = omnidirectional_controller::Params;
 using ParamsListener = omnidirectional_controller::ParamListener;

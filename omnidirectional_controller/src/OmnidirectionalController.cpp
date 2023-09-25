@@ -2,8 +2,10 @@
 #include <asm-generic/errno.h>
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
+#include <limits>
 #include <math_utilities/MotorPacket.hpp>
 #include <math_utilities/PID.hpp>
+#include <rclcpp/logging.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +23,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         return controller_interface::CallbackReturn::ERROR;
     }
     motor_number_ = static_cast<int>(params_.motor_names.size());
+    wheel_velocities_.resize(motor_number_, std::numeric_limits<double>::quiet_NaN());
     // init params
     for (int i = 0; i < motor_number_; i++) {
         // init pid
@@ -217,11 +220,18 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
+    // get motor measured
+    for (int i = 0; i < motor_number_; i++) {
+        cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
+    }
     // omnidirectional wheels solve
     velocity_solver_.solve(*last_command_msg);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
-    ///TODO: set command values
+    for (int i = 0; i < motor_number_; i++) {
+            RCLCPP_ERROR(logger_, "motor%d value: %f", i, wheel_velocities_[i]);
+    }
+    // set command values
     pid_cnt_ += 1;
     auto state_msg = realtime_gimbal_state_pub_->msg_;
     // caculate pid
