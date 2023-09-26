@@ -15,9 +15,12 @@
 #include "helios_rs_interfaces/msg/shooter_cmd.hpp"
 #include "helios_rs_interfaces/msg/motor_state.hpp"
 #include "helios_rs_interfaces/msg/motor_states.hpp"
+#include "helios_rs_interfaces/msg/power_heat_data.hpp"
 
 #include "visibility_control.h"
 
+#include <helios_rs_interfaces/msg/detail/power_heat_data__struct.hpp>
+#include <memory>
 #include <vector>
 #include <queue>
 #include <string>
@@ -29,10 +32,18 @@
 // https://github.com/PickNikRobotics/generate_parameter_library
 #include "shooter_controller_parameters.hpp"
 
+#define SHOOTER_STOP 0
+#define SHOOTER_LOW_VELOCITY 1
+#define SHOOTER_HIGH_VELOCITY 2
+
+#define DIAL_STOP 0
+#define DIAL_CLOCKWISE 1
+#define DIAL_COUNT_CLOCKWISE 2
 
 namespace helios_control {
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "/shooter_cmd";
+constexpr auto DEFAULT_HEAT_TOPIC = "/power_heat_data";
 constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/shooter_cmd_out";
 
 using Params = shooter_controller::Params;
@@ -68,12 +79,15 @@ public:
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
     int motor_number_;
-    std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
+    // cmd subscriber
+    std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_shooter_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
-    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd>> received_gimbal_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd>> received_shooter_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::PowerHeatData>> received_heat_ptr_;
 
     rclcpp::Subscription<helios_rs_interfaces::msg::ShooterCmd>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<helios_rs_interfaces::msg::PowerHeatData>::SharedPtr heat_sub_;
     // Parameters from ROS for OmnidirectionalController
     std::shared_ptr<ParamsListener> param_listener_;
     Params params_;
@@ -88,14 +102,12 @@ protected:
     // // previous 2 commands
     std::queue<helios_rs_interfaces::msg::ShooterCmd> previous_commands_;
     std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd> last_command_msg;
+    std::shared_ptr<helios_rs_interfaces::msg::PowerHeatData> last_heat_msg;
 
     bool should_publish_ = false;
-    // PID class
-    std::map<std::string, math_utilities::PID> position_pids_;
-    std::map<std::string, math_utilities::PID> velocity_pids_;
-    int pid_cnt_ = 0;
-    std::map<std::string, double> wheel_res_;
+    // motor cmds
     std::map<std::string, math_utilities::MotorPacket> cmd_map_;
+        
     /**
      * @brief Convert the current state of the chassis from state_interfaces to a ROS message
      * @param state_msg The message to be filled

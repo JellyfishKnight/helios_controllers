@@ -210,6 +210,10 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         previous_publish_timestamp_ = time;
         should_publish_ = true;
     }
+    // get motor measured
+    for (int i = 0; i < motor_number_; i++) {
+        cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
+    }
     // publish gimbal states
     if (should_publish_) {
         if (realtime_gimbal_state_pub_->trylock()) {
@@ -218,21 +222,13 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
             if (!export_state_interfaces(state_msg)) {
                 RCLCPP_WARN(logger_, "Could not find some state interfaces");
             }
-            RCLCPP_WARN(logger_, "Could not find some state interfaces");
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
-    }
-    // get motor measured
-    for (int i = 0; i < motor_number_; i++) {
-        cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
     }
     // omnidirectional wheels solve
     velocity_solver_.solve(*last_command_msg);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
-    // set command values
-    pid_cnt_ += 1;
-    auto state_msg = realtime_gimbal_state_pub_->msg_;
     // caculate pid
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 

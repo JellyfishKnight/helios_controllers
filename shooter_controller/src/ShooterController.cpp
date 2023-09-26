@@ -1,5 +1,8 @@
 #include "ShooterController.hpp"
+#include <helios_rs_interfaces/msg/detail/power_heat_data__struct.hpp>
+#include <memory>
 #include <rclcpp/logging.hpp>
+#include <rclcpp/qos.hpp>
 #include <std_msgs/msg/detail/int32__struct.hpp>
 
 namespace helios_control {
@@ -87,13 +90,29 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
     state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
         DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
     );
-    realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
+    realtime_shooter_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
         state_pub_
     );
+    // initialize subscribers
     const helios_rs_interfaces::msg::ShooterCmd empty_gimbal_msg;
-    received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::ShooterCmd>(empty_gimbal_msg));
-
-    // initialize command subscriber
+    const helios_rs_interfaces::msg::PowerHeatData empty_heat_msg;
+    received_shooter_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::ShooterCmd>(empty_gimbal_msg));
+    received_heat_ptr_.set(std::make_shared<helios_rs_interfaces::msg::PowerHeatData>(empty_heat_msg));
+    heat_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::PowerHeatData>(
+        DEFAULT_HEAT_TOPIC, rclcpp::SensorDataQoS(), 
+        [this](helios_rs_interfaces::msg::PowerHeatData::SharedPtr msg) {
+            if (!subscriber_is_active_) {
+                RCLCPP_WARN(logger_, "Can't accept new states. subscriber is inactive");
+                return ;
+            }
+            if (msg.get() == nullptr) {
+                RCLCPP_WARN(logger_, "Received nullptr heat message");
+                return ;
+            }
+            
+            received_heat_ptr_.set(std::move(msg));
+        }
+    );
     cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::ShooterCmd>(
         DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
         [this](helios_rs_interfaces::msg::ShooterCmd::SharedPtr msg)->void {
@@ -105,11 +124,7 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
                 RCLCPP_WARN(logger_, "Received nullptr command message");
                 return ;
             }
-            if (msg->fire_flag == true) {
-                // counter-clockwise mode
-                msg->dial_mode = 2;
-            }
-            received_gimbal_cmd_ptr_.set(std::move(msg));
+            received_shooter_cmd_ptr_.set(std::move(msg));
         }
     );
     // set publish rate
@@ -177,8 +192,9 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
     // check if command message if nullptr
-    received_gimbal_cmd_ptr_.get(last_command_msg);
-    if (last_command_msg == nullptr) {
+    received_shooter_cmd_ptr_.get(last_command_msg);
+    received_heat_ptr_.get(last_heat_msg);
+    if (last_command_msg == nullptr || last_command_msg == nullptr) {
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
@@ -191,31 +207,46 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         // Handle exceptions when the time source changes and initialize publish timestamp
         previous_publish_timestamp_ = time;
         should_publish_ = true;
-    }
+    }    
     // publish gimbal states
     if (should_publish_) {
-        if (realtime_gimbal_state_pub_->trylock()) {
-            auto & state_msg = realtime_gimbal_state_pub_->msg_;
+        if (realtime_shooter_state_pub_->trylock()) {
+            auto & state_msg = realtime_shooter_state_pub_->msg_;
             state_msg.header.stamp = time;
             if (!export_state_interfaces(state_msg)) {
                 RCLCPP_WARN(logger_, "Could not find some state interfaces");
             }
-            RCLCPP_WARN(logger_, "Could not find some state interfaces");
-            realtime_gimbal_state_pub_->unlockAndPublish();
+            realtime_shooter_state_pub_->unlockAndPublish();
         }
+    }
+    // check if heat has run out
+    if (last_heat_msg->shooter_id1_17mm_residual_cooling_heat > params_.heat_limit) {
+        
     }
     // get motor measured
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
     }
-    // set command values
-    pid_cnt_ += 1;
-    auto state_msg = realtime_gimbal_state_pub_->msg_;
-    // caculate pid
-    for (int i = 0; i < motor_number_; i++) {
+    // caculate shooter pid
+    double velocity_rpm = 0;
+    if (last_command_msg->shooter_mode == SHOOTER_STOP) {
+        velocity_rpm = 0;
+    } else if (last_command_msg->shooter_mode == SHOOTER_LOW_VELOCITY) {
+        velocity_rpm = params_.shooter.low_velocity;
+    } else iF (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
+        velocity_rpm = params_.shooter.high_velocity;
+    }
+    for (int i = 0; i < motor_number_ - params_.dial_motor_number; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
-            cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(last_command_msg->data);
-        // RCLCPP_ERROR(logger_, "%s value: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
+            cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(velocity_rpm);
+    }
+    // caculate dial pid
+    if (last_command_msg->dial_mode == )
+    for (int i = 0; i < params_.dial.dial_motor_number; i++) {
+        cmd_map_.find(params_.motor_names[i + motor_number_ - params_.dial.dial_motor_number])->second.value_ = 
+            cmd_map_.find(params_.motor_names[i + motor_number_ - params_.dial.dial_motor_number])->second.set_motor_speed(
+                
+            );
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {

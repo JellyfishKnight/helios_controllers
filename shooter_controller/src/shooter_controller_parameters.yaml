@@ -89,18 +89,43 @@ shooter_controller:
       0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     ]
   }
-  shooter_mode: {
+  heat_limit: {
     type: int,
-    default_value: 0,
-    description: "0: stop, 1: low_velocity, 2: high_velocity",
+    default_value: 10,
+    description: "the heat limit of shooter",
   }
-  dial_mode: {
-    type: int,
-    default_value: 0,
-    description: "0: stop, 1: clockwise, 2: counter-clockwise 3: dead",
-  }
-  shooter_velocity: {
-    type: double,
-    default_value: 0.0,
-    description: "shooter velocity",
-  }
+  shooter: 
+    low_velocity: {
+      type: double,
+      default_value: 0.0,
+      description: "Low velocity of shooter",
+    }
+    high_velocity: {
+      type: double,
+      default_value: 0.0,
+      description: "High velocity of shooter",
+    }
+  dial: 
+    dial_motor_number: {
+      type: int,
+      default_value: 2,
+      description: "Number of dial motors", 
+    }
+    dial_velocity_level: {
+      type: double_array,
+      # level 1 to 10
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Velocity level of dial",
+    }
+    count_clock_wise_angle: {
+      type: double,
+      default_value: 0.0,
+      description: "Angle of dial when it rotates clock wise for one circle",
+    }
+    auto_fire_rate: {
+      type: double,
+      default_value: 0.0,
+      description: "Auto fire rate of dial",
+    }
+
+
