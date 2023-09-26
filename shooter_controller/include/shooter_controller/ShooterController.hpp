@@ -12,6 +12,7 @@
 #include "lifecycle_msgs/msg/state.hpp"
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include "helios_rs_interfaces/msg/shooter_cmd.hpp"
 #include "helios_rs_interfaces/msg/motor_state.hpp"
 #include "helios_rs_interfaces/msg/motor_states.hpp"
 
@@ -31,8 +32,8 @@
 
 namespace helios_control {
 
-constexpr auto DEFAULT_COMMAND_TOPIC = "/shooter/cmd_vel";
-constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/shooter/cmd_vel_out";
+constexpr auto DEFAULT_COMMAND_TOPIC = "/shooter_cmd";
+constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/shooter_cmd_out";
 
 using Params = shooter_controller::Params;
 using ParamsListener = shooter_controller::ParamListener;
@@ -66,12 +67,13 @@ public:
     SHOOTER_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
+    int motor_number_;
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
-    realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_gimbal_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd>> received_gimbal_cmd_ptr_;
 
-    rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<helios_rs_interfaces::msg::ShooterCmd>::SharedPtr cmd_sub_;
     // Parameters from ROS for OmnidirectionalController
     std::shared_ptr<ParamsListener> param_listener_;
     Params params_;
@@ -84,7 +86,8 @@ protected:
     std::chrono::milliseconds cmd_timeout_{50};
 
     // // previous 2 commands
-    std::queue<geometry_msgs::msg::TwistStamped> previous_commands_;
+    std::queue<helios_rs_interfaces::msg::ShooterCmd> previous_commands_;
+    std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd> last_command_msg;
 
     bool should_publish_ = false;
     // PID class

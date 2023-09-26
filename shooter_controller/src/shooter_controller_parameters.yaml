@@ -1,5 +1,106 @@
 shooter_controller:
+  motor_number: {
+    type: int,
+    default_value: 4,
+    description: "Number of motors",
+  }
   motor_names: {
     type: string_array,
-    default_value: ['shooter_1', 'shooter_2', 'shooter_3', 'shooter_4', 'dial_1', 'dial_2'],
+    default_value: ["shooter_left_up", "shooter_left_down", "shooter_right_up", "shooter_right_down", "dial_1", "dial_2"],
+    description: "Link names of the motors",
+  }
+  motor_command_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "motor_value"],
+    description: "Names of command interfaces of the motors",
+  }
+  motor_state_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "position", "velocity", "current", "temperature"],
+    description: "Names of state interfaces of the motors",
+  }
+  publish_rate: {
+    type: double,
+    default_value: 1000,
+    description: "Publish rate of states the controller got",
+  }
+  cmd_timeout: {
+    type: int,
+    default_value: 200,   #ms
+    description: "the time interval between two commands",
+  }
+  update_rate: {
+    type: int,
+    default_value: 1000, #rate
+    description: "the update rate of gimbal controller",
+  }
+  motor_commands: {
+    type: double_array,
+    default_value: 
+    [ #can_id motor_types motor_id motor_value 
+      0.0, 0.0, 0.0, 0.0, #1
+      0.0, 0.0, 0.0, 0.0, #2
+      0.0, 0.0, 0.0, 0.0, #3
+      0.0, 0.0, 0.0, 0.0, #4
+      0.0, 0.0, 0.0, 0.0, #5
+      0.0, 0.0, 0.0, 0.0, #6
+    ],
+  }
+  motor_pos_pid: {
+    type: double_array,
+    default_value: 
+    [ #kp  ki   kd   i_max
+      0.1, 0.0, 0.0, 0.0, #1
+      0.1, 0.0, 0.0, 0.0, #2
+      0.1, 0.0, 0.0, 0.0, #3
+      0.1, 0.0, 0.0, 0.0, #4
+      0.1, 0.0, 0.0, 0.0, #5
+      0.1, 0.0, 0.0, 0.0, #6
+    ],
+  }
+  motor_vel_pid: {
+    type: double_array,
+    default_value: 
+    [ #kp  ki   kd   i_max
+      0.1, 0.0, 0.0, 0.0, #1
+      0.1, 0.0, 0.0, 0.0, #2
+      0.1, 0.0, 0.0, 0.0, #3
+      0.1, 0.0, 0.0, 0.0, #4
+      0.1, 0.0, 0.0, 0.0, #5
+      0.1, 0.0, 0.0, 0.0, #6
+    ],
+  }
+  motor_current_pid: {
+    type: double_array,
+    default_value: 
+    [ #kp  ki   kd   i_max
+      0.1, 0.0, 0.0, 0.0, #1
+      0.1, 0.0, 0.0, 0.0, #2
+      0.1, 0.0, 0.0, 0.0, #3
+      0.1, 0.0, 0.0, 0.0, #4
+      0.1, 0.0, 0.0, 0.0, #5
+      0.1, 0.0, 0.0, 0.0, #6
+    ],
+  }
+  motor_mid_angle: {
+    type: int_array,
+    default_value: 
+    [ #1   #2   #3   #4   #5   #6
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    ]
+  }
+  shooter_mode: {
+    type: int,
+    default_value: 0,
+    description: "0: stop, 1: low_velocity, 2: high_velocity",
+  }
+  dial_mode: {
+    type: int,
+    default_value: 0,
+    description: "0: stop, 1: clockwise, 2: counter-clockwise 3: dead",
+  }
+  shooter_velocity: {
+    type: double,
+    default_value: 0.0,
+    description: "shooter velocity",
   }

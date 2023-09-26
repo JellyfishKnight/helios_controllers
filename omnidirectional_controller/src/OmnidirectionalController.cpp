@@ -211,7 +211,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         should_publish_ = true;
     }
     // publish gimbal states
-    if (true) {
+    if (should_publish_) {
         if (realtime_gimbal_state_pub_->trylock()) {
             auto & state_msg = realtime_gimbal_state_pub_->msg_;
             state_msg.header.stamp = time;
