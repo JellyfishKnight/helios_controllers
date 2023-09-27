@@ -219,10 +219,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             realtime_shooter_state_pub_->unlockAndPublish();
         }
     }
-    // check if heat has run out
-    if (last_heat_msg->shooter_id1_17mm_residual_cooling_heat > params_.heat_limit) {
-        
-    }
     // get motor measured
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
@@ -233,20 +229,30 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         velocity_rpm = 0;
     } else if (last_command_msg->shooter_mode == SHOOTER_LOW_VELOCITY) {
         velocity_rpm = params_.shooter.low_velocity;
-    } else iF (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
+    } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
         velocity_rpm = params_.shooter.high_velocity;
     }
-    for (int i = 0; i < motor_number_ - params_.dial_motor_number; i++) {
+    for (int i = 0; i < motor_number_ - params_.dial.dial_motor_number; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
             cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(velocity_rpm);
     }
     // caculate dial pid
-    if (last_command_msg->dial_mode == )
-    for (int i = 0; i < params_.dial.dial_motor_number; i++) {
-        cmd_map_.find(params_.motor_names[i + motor_number_ - params_.dial.dial_motor_number])->second.value_ = 
-            cmd_map_.find(params_.motor_names[i + motor_number_ - params_.dial.dial_motor_number])->second.set_motor_speed(
-                
-            );
+    // check if heat has run out
+    if (last_command_msg->dial_mode == DIAL_STOP ||
+        last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit) {
+        velocity_rpm = 0;
+        for (int i = motor_number_ - params_.dial.dial_motor_number; i < motor_number_; i++) {
+            cmd_map_.find(params_.motor_names[i])->second.value_ = 
+                cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(velocity_rpm);
+        }
+    } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
+        velocity_rpm = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
+        for (int i = motor_number_ - params_.dial.dial_motor_number; i < motor_number_; i++) {
+            cmd_map_.find(params_.motor_names[i])->second.value_ = 
+                cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(velocity_rpm);
+        }
+    } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
+        ///TODO: DIAL_COUNT_CLOCKWISE MODE
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {

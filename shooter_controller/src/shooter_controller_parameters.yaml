@@ -83,7 +83,7 @@ shooter_controller:
     ],
   }
   motor_mid_angle: {
-    type: int_array,
+    type: double_array,
     default_value: 
     [ #1   #2   #3   #4   #5   #6
       0.0, 0.0, 0.0, 0.0, 0.0, 0.0
