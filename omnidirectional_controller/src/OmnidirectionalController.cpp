@@ -5,6 +5,17 @@
 #include <helios_rs_interfaces/msg/detail/motor_state__struct.hpp>
 #include <limits>
 #include <math_utilities/MotorPacket.hpp>
+// created by liuhan on 2023/9/21
+// Submodule of HeliosRobotSystem
+// for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
+/*
+ * ██   ██ ███████ ██      ██  ██████  ███████
+ * ██   ██ ██      ██      ██ ██    ██ ██
+ * ███████ █████   ██      ██ ██    ██ ███████
+ * ██   ██ ██      ██      ██ ██    ██      ██
+ * ██   ██ ███████ ███████ ██  ██████  ███████
+ *
+ */
 #include <math_utilities/PID.hpp>
 #include <rclcpp/logging.hpp>
 #include <string>
@@ -254,13 +265,20 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
 }
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
-    ///TODO: export state interfaces
     state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
     state_msg.header.frame_id = "chassis";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {
         const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
-        motor_packet->second.set_state_msg(state_msg.motor_states[i]);
+        if (motor_packet != cmd_map_.end()) {
+            motor_packet->second.set_state_msg(state_msg.motor_states[i]);
+            motor_packet->second.can_id_ = params_.motor_commands[i * motor_number_];
+            motor_packet->second.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
+            motor_packet->second.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
+        } else {
+            RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
+            return false;
+        }
     }
     return true;
 }

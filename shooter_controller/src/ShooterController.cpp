@@ -1,3 +1,14 @@
+// created by liuhan on 2023/9/22
+// Submodule of HeliosRobotSystem
+// for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
+/*
+ * ██   ██ ███████ ██      ██  ██████  ███████
+ * ██   ██ ██      ██      ██ ██    ██ ██
+ * ███████ █████   ██      ██ ██    ██ ███████
+ * ██   ██ ██      ██      ██ ██    ██      ██
+ * ██   ██ ███████ ███████ ██  ██████  ███████
+ *
+ */
 #include "ShooterController.hpp"
 #include <helios_rs_interfaces/msg/detail/power_heat_data__struct.hpp>
 #include <memory>
@@ -253,6 +264,7 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         }
     } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
         ///TODO: DIAL_COUNT_CLOCKWISE MODE
+
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -270,6 +282,25 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         }
     }
     return controller_interface::return_type::OK;
+}
+
+bool ShooterController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
+    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
+    state_msg.header.frame_id = "shooter";
+    state_msg.header.stamp = this->get_node()->now();
+    for (int i = 0; i < motor_number_; i++) {
+        const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
+        if (motor_packet != cmd_map_.end()) {
+            motor_packet->second.set_state_msg(state_msg.motor_states[i]);
+            motor_packet->second.can_id_ = params_.motor_commands[i * motor_number_];
+            motor_packet->second.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
+            motor_packet->second.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
+        } else {
+            RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
+            return false;
+        }
+    }
+    return true;
 }
 
 bool reset() {
