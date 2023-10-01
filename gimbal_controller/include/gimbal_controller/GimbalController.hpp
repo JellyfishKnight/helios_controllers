@@ -7,7 +7,6 @@
  * ███████ █████   ██      ██ ██    ██ ███████
  * ██   ██ ██      ██      ██ ██    ██      ██
  * ██   ██ ███████ ███████ ██  ██████  ███████
- *
  */
 #pragma once 
 
@@ -24,7 +23,11 @@
 #include "helios_rs_interfaces/msg/send_data.hpp"
 
 #include "visibility_control.h"
+#include "math_utilities/MotorPacket.hpp"
+#include "math_utilities/PID.hpp"
+
 #include <map>
+#include <math_utilities/MotorPacket.hpp>
 #include <vector>
 #include <queue>
 #include <string>
@@ -41,13 +44,6 @@ namespace helios_control {
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "gimbal/cmd";
 constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "gimbal/cmd_out";
-
-typedef struct MotorCmd {
-    int can_id;
-    int motor_type;
-    int motor_id;
-    int value;
-}MotorCmd;
 
 class GimbalController : public controller_interface::ControllerInterface {
 public:
@@ -78,6 +74,8 @@ public:
     GIMBAL_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
+    int motor_number_;
+
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
@@ -99,7 +97,7 @@ protected:
     // std::queue<helios_rs_interfaces::msg::GIMBALMsg> previous_commands_;
 
     // pid controllers
-    std::map<std::string, MotorCmd> cmd_map_;
+    std::map<std::string, math_utilities::MotorPacket> cmd_map_;
 
 
     bool should_publish_ = false;

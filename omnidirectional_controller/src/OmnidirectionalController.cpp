@@ -69,6 +69,10 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
+    if (params_.motor_names.size() != motor_number_) {
+        RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
+        return controller_interface::CallbackReturn::ERROR;
+    }
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -189,6 +193,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
                 params_.motor_pos_pid[i * motor_number_ + 2],
                 params_.motor_pos_pid[i * motor_number_ + 3]);
         }
+
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
     // check if command message if nullptr

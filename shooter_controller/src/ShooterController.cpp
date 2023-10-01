@@ -61,6 +61,10 @@ controller_interface::CallbackReturn ShooterController::on_init() {
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
+    if (params_.motor_names.size() != motor_number_) {
+        RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
+        return controller_interface::CallbackReturn::ERROR;
+    }
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
