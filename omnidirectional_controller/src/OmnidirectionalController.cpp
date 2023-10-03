@@ -63,7 +63,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
             current_pid
         );
         motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
-        motor_packet.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
+        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * motor_number_ + 1]);
         motor_packet.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
         motor_packet.value_ = params_.motor_mid_angle[i];
         // init map
@@ -114,7 +114,13 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
         state_pub_
     );
-    const geometry_msgs::msg::TwistStamped empty_gimbal_msg;
+    geometry_msgs::msg::TwistStamped empty_gimbal_msg;
+    empty_gimbal_msg.twist.linear.x = 0;
+    empty_gimbal_msg.twist.linear.y = 0;
+    empty_gimbal_msg.twist.linear.z = 0;
+    empty_gimbal_msg.twist.angular.x = 0;
+    empty_gimbal_msg.twist.angular.y = 0;
+    empty_gimbal_msg.twist.angular.z = 0;
     received_gimbal_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_gimbal_msg));
 
     // initialize command subscriber
@@ -241,6 +247,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
+    RCLCPP_WARN(logger_, "last x: %f", last_command_msg->twist.linear.x);
     // omnidirectional wheels solve
     velocity_solver_.solve(*last_command_msg);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
@@ -249,7 +256,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
             cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(wheel_velocities_[i]);
-        RCLCPP_ERROR(logger_, "%s value: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
+        RCLCPP_WARN(logger_, "%s: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -261,7 +268,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
                 command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
                 command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "value") {
+            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
                 command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
         }
