@@ -1,13 +1,13 @@
 omnidirectional_controller:
   motor_number: {
     type: int,
-    default_value: 2,
+    default_value: 4,
     description: "Number of motors",
   }
   motor_names: {
     type: string_array,
-    # default_value: ["front_left", "front_right", "back_left", "back_right"],
-    default_value: ["front_left", "front_right"],
+    default_value: ["front_left", "front_right", "back_left", "back_right"],
+    # default_value: ["front_left", "front_right", 'back_left'],
     description: "Link names of the motors",
   }
   motor_command_interfaces: {
@@ -25,9 +25,9 @@ omnidirectional_controller:
     default_value: 
     [ #can_id motor_type motor_id motor_value 
       1, 0x200, 1, 0, #1
-      1, 0x1ff, 7, 0, #2
-      # 0, 0, 0, 0, #3
-      # 0, 0, 0, 0, #4
+      1, 0x200, 2, 0, #2
+      1, 0x200, 3, 0, #3
+      1, 0x200, 4, 0, #4
     ],
   }
   motor_pos_pid: {
@@ -35,19 +35,19 @@ omnidirectional_controller:
     default_value: 
     [ #kp  ki   kd   i_max
       0.0001, 0.0, 0.0, 0.0, #1
-      0.000, 0.0, 0.0, 0.0, #2
-      # 0.1, 0.0, 0.0, 0.0, #3
-      # 0.1, 0.0, 0.0, 0.0, #4
+      0.01, 0.0, 0.0, 0.0, #2
+      0.01, 0.0, 0.0, 0.0, #3
+      0.01, 0.0, 0.0, 0.0, #4
     ],
   }
   motor_vel_pid: {
     type: double_array,
     default_value: 
     [ #kp  ki   kd   i_max
-      1.0, 0.0, 0.0, 0.0, #1
-      0.0, 0.0, 0.0, 0.0, #2
-      # 0.1, 0.0, 0.0, 0.0, #3
-      # 0.1, 0.0, 0.0, 0.0, #4
+      1.5, 0.0, 0.0, 0.0, #1
+      0.2, 0.0, 0.0, 0.0, #2
+      0.5, 0.0, 0.0, 0.0, #3
+      0.2, 0.0, 0.0, 0.0, #4
     ],
   }
   motor_current_pid: {
@@ -56,16 +56,16 @@ omnidirectional_controller:
     [ #kp  ki   kd   i_max
       0.1, 0.0, 0.0, 0.0, #1
       0.1, 0.0, 0.0, 0.0, #2
-      # 0.1, 0.0, 0.0, 0.0, #3
-      # 0.1, 0.0, 0.0, 0.0, #4
+      0.1, 0.0, 0.0, 0.0, #3
+      0.1, 0.0, 0.0, 0.0, #4
     ],
   }
   motor_mid_angle: {
     type: int_array,
     default_value: 
     [ #1 #2 #3 #4
-      # 0, 0, 0, 0,
-      0, 0,
+      0, 0, 0, 0,
+      # 0, 0, 0,
     ]
   }
   publish_rate: {
