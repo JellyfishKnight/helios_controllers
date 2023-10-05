@@ -1,10 +1,3 @@
-#include "OmnidirectionalController.hpp"
-#include <asm-generic/errno.h>
-#include <geometry_msgs/msg/detail/twist__struct.hpp>
-#include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
-#include <helios_rs_interfaces/msg/detail/motor_state__struct.hpp>
-#include <limits>
-#include <math_utilities/MotorPacket.hpp>
 // created by liuhan on 2023/9/21
 // Submodule of HeliosRobotSystem
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
@@ -16,6 +9,13 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  *
  */
+#include "OmnidirectionalController.hpp"
+#include <asm-generic/errno.h>
+#include <geometry_msgs/msg/detail/twist__struct.hpp>
+#include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
+#include <helios_rs_interfaces/msg/detail/motor_state__struct.hpp>
+#include <limits>
+#include <math_utilities/MotorPacket.hpp>
 #include <math_utilities/PID.hpp>
 #include <rclcpp/logging.hpp>
 #include <string>
@@ -35,6 +35,9 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         return controller_interface::CallbackReturn::ERROR;
     }
     motor_number_ = static_cast<int>(params_.motor_names.size());
+    state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+    command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+    pid_param_number_ = 4;
     wheel_velocities_.resize(motor_number_, std::numeric_limits<double>::quiet_NaN());
     // init params
     for (int i = 0; i < motor_number_; i++) {
@@ -42,18 +45,18 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         math_utilities::PID pos_pid;
         math_utilities::PID vel_pid;
         math_utilities::PID current_pid;
-        pos_pid.set_pid_params(params_.motor_pos_pid[i * motor_number_], 
-                                params_.motor_pos_pid[i * motor_number_ + 1],
-                                params_.motor_pos_pid[i * motor_number_ + 2],
-                                params_.motor_pos_pid[i * motor_number_ + 3]);
-        vel_pid.set_pid_params(params_.motor_vel_pid[i * motor_number_], 
-                                params_.motor_vel_pid[i * motor_number_ + 1],
-                                params_.motor_vel_pid[i * motor_number_ + 2],
-                                params_.motor_vel_pid[i * motor_number_ + 3]);
-        current_pid.set_pid_params(params_.motor_current_pid[i * motor_number_], 
-                                params_.motor_current_pid[i * motor_number_ + 1],
-                                params_.motor_current_pid[i * motor_number_ + 2],
-                                params_.motor_current_pid[i * motor_number_ + 3]);
+        pos_pid.set_pid_params(params_.motor_pos_pid[i * pid_param_number_], 
+                                params_.motor_pos_pid[i * pid_param_number_ + 1],
+                                params_.motor_pos_pid[i * pid_param_number_ + 2],
+                                params_.motor_pos_pid[i * pid_param_number_ + 3]);
+        vel_pid.set_pid_params(params_.motor_vel_pid[i * pid_param_number_], 
+                                params_.motor_vel_pid[i * pid_param_number_ + 1],
+                                params_.motor_vel_pid[i * pid_param_number_ + 2],
+                                params_.motor_vel_pid[i * pid_param_number_ + 3]);
+        current_pid.set_pid_params(params_.motor_current_pid[i * pid_param_number_], 
+                                params_.motor_current_pid[i * pid_param_number_ + 1],
+                                params_.motor_current_pid[i * pid_param_number_ + 2],
+                                params_.motor_current_pid[i * pid_param_number_ + 3]);
 
         math_utilities::MotorPacket motor_packet(
             params_.motor_names[i],
@@ -62,10 +65,12 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
             vel_pid,
             current_pid
         );
-        motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
-        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * motor_number_ + 1]);
-        motor_packet.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
+        motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
+        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
+        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
         motor_packet.value_ = params_.motor_mid_angle[i];
+        // RCLCPP_DEBUG the motor packet info
+        RCLCPP_DEBUG(logger_, "can_id %d, motor_type: %d, motor_id: %d", motor_packet.can_id_, motor_packet.motor_type_, motor_packet.motor_id_);
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
@@ -182,22 +187,25 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
         motor_number_ = static_cast<int>(params_.motor_names.size());
+        state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+        command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+        pid_param_number_ = 4;
         for (int i = 0; i < motor_number_; i++) {
             cmd_map_.find(params_.motor_names[i])->second.set_pid_current(
-                params_.motor_current_pid[i * motor_number_], 
-                params_.motor_current_pid[i * motor_number_ + 1], 
-                params_.motor_current_pid[i * motor_number_ + 2],
-                params_.motor_current_pid[i * motor_number_ + 3]);
+                params_.motor_current_pid[i * pid_param_number_], 
+                params_.motor_current_pid[i * pid_param_number_ + 1], 
+                params_.motor_current_pid[i * pid_param_number_ + 2],
+                params_.motor_current_pid[i * pid_param_number_ + 3]);
             cmd_map_.find(params_.motor_names[i])->second.set_pid_vel(
-                params_.motor_vel_pid[i * motor_number_], 
-                params_.motor_vel_pid[i * motor_number_ + 1], 
-                params_.motor_vel_pid[i * motor_number_ + 2],
-                params_.motor_vel_pid[i * motor_number_ + 3]);
+                params_.motor_vel_pid[i * pid_param_number_], 
+                params_.motor_vel_pid[i * pid_param_number_ + 1], 
+                params_.motor_vel_pid[i * pid_param_number_ + 2],
+                params_.motor_vel_pid[i * pid_param_number_ + 3]);
             cmd_map_.find(params_.motor_names[i])->second.set_pid_pos(
-                params_.motor_pos_pid[i * motor_number_], 
-                params_.motor_pos_pid[i * motor_number_ + 1], 
-                params_.motor_pos_pid[i * motor_number_ + 2],
-                params_.motor_pos_pid[i * motor_number_ + 3]);
+                params_.motor_pos_pid[i * pid_param_number_], 
+                params_.motor_pos_pid[i * pid_param_number_ + 1], 
+                params_.motor_pos_pid[i * pid_param_number_ + 2],
+                params_.motor_pos_pid[i * pid_param_number_ + 3]);
         }
 
         RCLCPP_DEBUG(logger_, "Parameters were updated");
@@ -233,9 +241,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         should_publish_ = true;
     }
     // get motor measured
-    for (int i = 0; i < motor_number_; i++) {
-        cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
-    }
+    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
     // publish gimbal states
     if (should_publish_) {
         if (realtime_gimbal_state_pub_->trylock()) {
@@ -247,7 +253,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
-    RCLCPP_WARN(logger_, "last x: %f", last_command_msg->twist.linear.x);
+    RCLCPP_DEBUG(logger_, "last x: %f", last_command_msg->twist.linear.x);
     // omnidirectional wheels solve
     velocity_solver_.solve(*last_command_msg);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
@@ -256,7 +262,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
             cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(wheel_velocities_[i]);
-        RCLCPP_WARN(logger_, "%s: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
+        RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -284,9 +290,6 @@ bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::ms
         const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
         if (motor_packet != cmd_map_.end()) {
             motor_packet->second.set_state_msg(state_msg.motor_states[i]);
-            motor_packet->second.can_id_ = params_.motor_commands[i * motor_number_];
-            motor_packet->second.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
-            motor_packet->second.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
         } else {
             RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
             return false;

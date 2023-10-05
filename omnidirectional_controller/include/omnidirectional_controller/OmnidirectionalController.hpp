@@ -41,7 +41,7 @@
 namespace helios_control {
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "/cmd_vel";
-constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/cmd_vel_out";
+constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/chassis_cmd_vel_out";
 
 using Params = omnidirectional_controller::Params;
 using ParamsListener = omnidirectional_controller::ParamListener;
@@ -76,6 +76,9 @@ public:
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
     int motor_number_;
+    int state_interface_number_;
+    int command_interface_number_;
+    int pid_param_number_;
 
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
