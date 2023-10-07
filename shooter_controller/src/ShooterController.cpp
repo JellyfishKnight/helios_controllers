@@ -235,9 +235,9 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         }
     }
     // get motor measured
-    for (int i = 0; i < motor_number_; i++) {
-        cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
-    }
+    // for (int i = 0; i < motor_number_; i++) {
+    //     cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
+    // }
     // caculate shooter pid
     double velocity_rpm = 0;
     if (last_command_msg->shooter_mode == SHOOTER_STOP) {
