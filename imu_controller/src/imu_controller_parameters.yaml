@@ -1,0 +1,6 @@
+imu_controller:
+  update_rate: {
+    type: double,
+    default_value: 1000,
+    description: "update rate of controller"
+  }
