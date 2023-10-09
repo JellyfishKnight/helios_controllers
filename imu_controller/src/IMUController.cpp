@@ -18,7 +18,7 @@ namespace helios_control {
 controller_interface::CallbackReturn IMUController::on_init() {
   // create params
   try {
-    param_listener_ = std::make_shared<ParamsListener>(get_node());
+    param_listener_ = std::make_shared<ParamsListener>(this->get_node());
     params_ = param_listener_->get_params();
   } catch (const std::exception &e) {
     RCLCPP_ERROR(logger_, "on_init: %s", e.what());
@@ -36,10 +36,8 @@ controller_interface::InterfaceConfiguration IMUController::command_interface_co
 
 controller_interface::InterfaceConfiguration IMUController::state_interface_configuration() const {
   std::vector<std::string> conf_names;
-  for (const auto & sensor_name : params_.sensor_names) {
-    for (const auto & state_name : params_.state_interfaces) {
-      conf_names.push_back(sensor_name + "/" + state_name);
-    }
+  for (const auto & state_name : params_.state_interfaces) {
+    conf_names.push_back(params_.sensor_name + "/" + state_name);
   }
   return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
 }
@@ -157,7 +155,9 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
         // transform from pitch to camera
         transform_stamped.header.frame_id = params_.pitch_frame_id;
         transform_stamped.child_frame_id = params_.camera_frame_id;
-        q.setEuler();
+        q.setEuler(params_.pitch_joint_to_camera_joint_rotate_euler[0], 
+          params_.pitch_joint_to_camera_joint_rotate_euler[1],
+          params_.pitch_joint_to_camera_joint_rotate_euler[2]);
         transform_stamped.transform.translation.x = params_.yaw_joint_to_pitch_joint_tvec[0];
         transform_stamped.transform.translation.y = params_.yaw_joint_to_pitch_joint_tvec[1];
         transform_stamped.transform.translation.z = params_.yaw_joint_to_pitch_joint_tvec[2];

@@ -19,10 +19,10 @@ imu_controller:
     default_value: "imu",
     description: "imu frame id"
   }
-  sensor_names: {
-    type: string_array,
-    default_value: ["imu"],
-    description: "names of imu sensors"
+  sensor_name: {
+    type: string,
+    default_value: "imu",
+    description: "names of imu sensor"
   }
   state_interfaces: {
     type: string_array,
@@ -32,58 +32,30 @@ imu_controller:
   publish_rate: {
     type: double,
     default_value: 1000,
-    description: "publish rate of controller"
+    description: "Publish rate of states the controller got",
   }
   update_rate: {
-    type: double,
-    default_value: 1000,
-    description: "update rate of controller"
+    type: int,
+    default_value: 1000, #rate
+    description: "the update rate of gimbal controller",
   }
   imu_to_yaw_joint_tvec: {
     type: double_array,
-    default_value: 
-    [
-      0, 0, 0,
-    ],
+    default_value: [0.0, 0.0, 0.0],
     description: "tvec from imu to yaw"
-  }
-  imu_to_yaw_joint_rotate_euler: {
-    type: double_array,
-    default_value:
-    [
-      0, 0, 0,
-    ],
-    description: "rotate euler from imu to yaw"
   }
   yaw_joint_to_pitch_joint_tvec: {
     type: double_array,
-    default_value: 
-    [
-      0, 0, 0,
-    ],
+    default_value: [0.022, 0.0, 0.23624],
     description: "tvec from yaw to pitch",
-  }
-  yaw_joint_to_pitch_joint_rotate_euler: {
-    type: double_array,
-    default_value: 
-    [
-      0, 0, 0,
-    ],
-    description: "rotation euler from yaw to pitch",
   }
   pitch_joint_to_camera_joint_tvec: {
     type: double_array,
-    default_value: 
-    [
-      0, 0, 0,
-    ],
+    default_value: [0.0817, 0.0, 0.0398],
     description: "tvec from pitch to camera",
   }
   pitch_joint_to_camera_joint_rotate_euler: {
     type: double_array,
-    default_value: 
-    [
-      0, -1.57079632679489661923, 0,
-    ],
+    default_value: [0.0, -1.57079632679489661923, 0.0],
     description: "rotation euler from pitch to camera",
   }
