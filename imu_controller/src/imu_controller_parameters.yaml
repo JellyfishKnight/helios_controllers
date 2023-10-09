@@ -1,6 +1,67 @@
 imu_controller:
+  imu_frame_id: {
+    type: string,
+    default_value: "imu",
+    description: "imu frame id"
+  }
+  imu_child_frame_id: {
+    type: string,
+    default_value: "gyro",
+    description: "gyro frame id"
+  }
+  sensor_names: {
+    type: string_array,
+    default_value: ["imu"],
+    description: "names of imu sensors"
+  }
+  state_interfaces: {
+    type: string_array,
+    default_value: ["x", "y", "z", "w", "x_linear_accel", "y_linear_accel", "z_linear_accel", "x_angular_vel", "y_angular_vel", "z_angular_vel"],
+    description: "state interfaces of imu"
+  }
+  publish_rate: {
+    type: double,
+    default_value: 1000,
+    description: "publish rate of controller"
+  }
   update_rate: {
     type: double,
     default_value: 1000,
     description: "update rate of controller"
+  }
+  yaw_joint_to_pitch_joint_tvec: {
+    type: double_array,
+    default_value: 
+    [
+      0, 0, 0,
+    ],
+    description: "tvec from yaw to pitch",
+  }
+  yaw_joint_to_pitch_joint_rotation_matrix: {
+    type: double_array,
+    default_value: 
+    [
+      0, 0, 0,
+      0, 0, 0,
+      0, 0, 0,
+    ],
+    description: "rotation matrix from yaw to pitch",
+  }
+  pitch_joint_to_camera_joint_tvec: {
+    type: double_array,
+    default_value: 
+    [
+      0, 0, 0,
+    ],
+    description: "tvec from pitch to camera",
+  }
+  pitch_joint_to_camera_joint_rotation_matrix: {
+    type: double_array,
+    default_value: 
+    [
+      0, 0, 0,
+      0, 0, 0,
+      0, 0, 0,
+    ],
+    description: "rotation matrix from pitch to camera",
   }
