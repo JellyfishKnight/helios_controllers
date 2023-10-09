@@ -121,10 +121,51 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
       if (!export_state_interfaces(state_msg)) {
         RCLCPP_WARN(logger_, "Could not find some state interfaces");
       } else {
+        double x, y, z, w;
+        x = state_msg.orientation.x;
+        y = state_msg.orientation.y;
+        z = state_msg.orientation.z;
+        w = state_msg.orientation.w;
+        // publish imu sensor data
         realtime_imu_pub_->unlockAndPublish();
+        // transform from imu to yaw
         transform_stamped.header.frame_id = params_.imu_frame_id;
-        transform_stamped.child_frame_id = params_.imu_child_frame_id;
+        transform_stamped.child_frame_id = params_.yaw_frame_id;
         transform_stamped.header.stamp = realtime_imu_pub_->msg_.header.stamp;
+        tf2::Quaternion q;
+        q.setEuler(atan2(2 * (w * z + x * y), 1 - 2 * (z * z + y * y)), 0, 0);
+        transform_stamped.transform.translation.x = params_.imu_to_yaw_joint_tvec[0];
+        transform_stamped.transform.translation.y = params_.imu_to_yaw_joint_tvec[1];
+        transform_stamped.transform.translation.z = params_.imu_to_yaw_joint_tvec[2];
+        transform_stamped.transform.rotation.x = q.x();
+        transform_stamped.transform.rotation.y = q.y();
+        transform_stamped.transform.rotation.z = q.z();
+        transform_stamped.transform.rotation.w = q.w();
+        dynamic_pub_->sendTransform(transform_stamped);
+        // transform from yaw to pitch
+        transform_stamped.header.frame_id = params_.yaw_frame_id;
+        transform_stamped.child_frame_id = params_.pitch_frame_id;
+        q.setEuler(0, std::asin(2 * (w * y - x * z)), 0);
+        transform_stamped.transform.translation.x = params_.yaw_joint_to_pitch_joint_tvec[0];
+        transform_stamped.transform.translation.y = params_.yaw_joint_to_pitch_joint_tvec[1];
+        transform_stamped.transform.translation.z = params_.yaw_joint_to_pitch_joint_tvec[2];
+        transform_stamped.transform.rotation.x = q.x();
+        transform_stamped.transform.rotation.y = q.y();
+        transform_stamped.transform.rotation.z = q.z();
+        transform_stamped.transform.rotation.w = q.w();
+        dynamic_pub_->sendTransform(transform_stamped);
+        // transform from pitch to camera
+        transform_stamped.header.frame_id = params_.pitch_frame_id;
+        transform_stamped.child_frame_id = params_.camera_frame_id;
+        q.setEuler();
+        transform_stamped.transform.translation.x = params_.yaw_joint_to_pitch_joint_tvec[0];
+        transform_stamped.transform.translation.y = params_.yaw_joint_to_pitch_joint_tvec[1];
+        transform_stamped.transform.translation.z = params_.yaw_joint_to_pitch_joint_tvec[2];
+        transform_stamped.transform.rotation.x = q.x();
+        transform_stamped.transform.rotation.y = q.y();
+        transform_stamped.transform.rotation.z = q.z();
+        transform_stamped.transform.rotation.w = q.w();
+        dynamic_pub_->sendTransform(transform_stamped);
       }
     }
   }

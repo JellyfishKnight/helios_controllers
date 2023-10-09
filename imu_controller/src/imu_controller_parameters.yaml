@@ -1,13 +1,23 @@
 imu_controller:
+  yaw_frame_id: {
+    type: string,
+    default_value: "yaw",
+    description: "imu frame id"
+  }
+  pitch_frame_id: {
+    type: string,
+    default_value: "pitch",
+    description: "pitch frame id"
+  }
+  camera_frame_id: {
+    type: string,
+    default_value: "camera",
+    description: "camera frame id"
+  }
   imu_frame_id: {
     type: string,
     default_value: "imu",
     description: "imu frame id"
-  }
-  imu_child_frame_id: {
-    type: string,
-    default_value: "gyro",
-    description: "gyro frame id"
   }
   sensor_names: {
     type: string_array,
@@ -29,6 +39,22 @@ imu_controller:
     default_value: 1000,
     description: "update rate of controller"
   }
+  imu_to_yaw_joint_tvec: {
+    type: double_array,
+    default_value: 
+    [
+      0, 0, 0,
+    ],
+    description: "tvec from imu to yaw"
+  }
+  imu_to_yaw_joint_rotate_euler: {
+    type: double_array,
+    default_value:
+    [
+      0, 0, 0,
+    ],
+    description: "rotate euler from imu to yaw"
+  }
   yaw_joint_to_pitch_joint_tvec: {
     type: double_array,
     default_value: 
@@ -37,15 +63,13 @@ imu_controller:
     ],
     description: "tvec from yaw to pitch",
   }
-  yaw_joint_to_pitch_joint_rotation_matrix: {
+  yaw_joint_to_pitch_joint_rotate_euler: {
     type: double_array,
     default_value: 
     [
       0, 0, 0,
-      0, 0, 0,
-      0, 0, 0,
     ],
-    description: "rotation matrix from yaw to pitch",
+    description: "rotation euler from yaw to pitch",
   }
   pitch_joint_to_camera_joint_tvec: {
     type: double_array,
@@ -55,13 +79,11 @@ imu_controller:
     ],
     description: "tvec from pitch to camera",
   }
-  pitch_joint_to_camera_joint_rotation_matrix: {
+  pitch_joint_to_camera_joint_rotate_euler: {
     type: double_array,
     default_value: 
     [
-      0, 0, 0,
-      0, 0, 0,
-      0, 0, 0,
+      0, -1.57079632679489661923, 0,
     ],
-    description: "rotation matrix from pitch to camera",
+    description: "rotation euler from pitch to camera",
   }

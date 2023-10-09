@@ -94,6 +94,7 @@ private:
     std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_pub_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> dynamic_pub_;
 
+    double yaw_, pitch_, roll_;
 
     /**
      * @brief Convert the current state of the chassis from state_interfaces to a ROS message
