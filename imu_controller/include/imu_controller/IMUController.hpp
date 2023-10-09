@@ -91,8 +91,8 @@ private:
 
     // tf2 utitlities
     geometry_msgs::msg::TransformStamped transform_;
-    std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_pub_;
-    std::unique_ptr<tf2_ros::TransformBroadcaster> dynamic_pub_;
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_pub_;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_pub_;
 
     double yaw_, pitch_, roll_;
 

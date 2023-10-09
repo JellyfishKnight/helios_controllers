@@ -24,8 +24,6 @@ controller_interface::CallbackReturn IMUController::on_init() {
     RCLCPP_ERROR(logger_, "on_init: %s", e.what());
     return controller_interface::CallbackReturn::ERROR;
   }
-  static_pub_ = std::make_unique<tf2_ros::StaticTransformBroadcaster>(*this->get_node());
-  dynamic_pub_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this->get_node());
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -58,6 +56,8 @@ controller_interface::CallbackReturn IMUController::on_configure(const rclcpp_li
   realtime_imu_pub_ = std::make_shared<realtime_tools::RealtimePublisher<sensor_msgs::msg::Imu>>(
     imu_pub_
   );
+  static_pub_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(*this->get_node());
+  dynamic_pub_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this->get_node());
   // set publish rate
   publish_rate_ = params_.publish_rate;
   publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
