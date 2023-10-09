@@ -26,7 +26,7 @@ imu_controller:
   }
   state_interfaces: {
     type: string_array,
-    default_value: ["x", "y", "z", "w", "x_linear_accel", "y_linear_accel", "z_linear_accel", "x_angular_vel", "y_angular_vel", "z_angular_vel"],
+    default_value: ["x", "y", "z", "w", "x_linear_accel", "y_linear_accel", "z_linear_accel", "x_angular_vel", "y_angular_vel", "z_angular_vel", "yaw", "pitch", "roll"],
     description: "state interfaces of imu"
   }
   publish_rate: {
@@ -56,6 +56,6 @@ imu_controller:
   }
   pitch_joint_to_camera_joint_rotate_euler: {
     type: double_array,
-    default_value: [0.0, -1.57079632679489661923, 0.0],
+    default_value: [1.57079632679489661923, 0.0, 0.0],
     description: "rotation euler from pitch to camera",
   }

@@ -119,11 +119,6 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
       if (!export_state_interfaces(state_msg)) {
         RCLCPP_WARN(logger_, "Could not find some state interfaces");
       } else {
-        double x, y, z, w;
-        x = state_msg.orientation.x;
-        y = state_msg.orientation.y;
-        z = state_msg.orientation.z;
-        w = state_msg.orientation.w;
         // publish imu sensor data
         realtime_imu_pub_->unlockAndPublish();
         // transform from imu to yaw
@@ -131,7 +126,7 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
         transform_stamped.child_frame_id = params_.yaw_frame_id;
         transform_stamped.header.stamp = realtime_imu_pub_->msg_.header.stamp;
         tf2::Quaternion q;
-        q.setEuler(atan2(2 * (w * z + x * y), 1 - 2 * (z * z + y * y)), 0, 0);
+        q.setEuler(0, 0, yaw_ * M_PI / 180.0);
         transform_stamped.transform.translation.x = params_.imu_to_yaw_joint_tvec[0];
         transform_stamped.transform.translation.y = params_.imu_to_yaw_joint_tvec[1];
         transform_stamped.transform.translation.z = params_.imu_to_yaw_joint_tvec[2];
@@ -143,7 +138,7 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
         // transform from yaw to pitch
         transform_stamped.header.frame_id = params_.yaw_frame_id;
         transform_stamped.child_frame_id = params_.pitch_frame_id;
-        q.setEuler(0, std::asin(2 * (w * y - x * z)), 0);
+        q.setEuler(pitch_ * M_PI / 180.0, 0, 0);
         transform_stamped.transform.translation.x = params_.yaw_joint_to_pitch_joint_tvec[0];
         transform_stamped.transform.translation.y = params_.yaw_joint_to_pitch_joint_tvec[1];
         transform_stamped.transform.translation.z = params_.yaw_joint_to_pitch_joint_tvec[2];
@@ -158,9 +153,9 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
         q.setEuler(params_.pitch_joint_to_camera_joint_rotate_euler[0], 
           params_.pitch_joint_to_camera_joint_rotate_euler[1],
           params_.pitch_joint_to_camera_joint_rotate_euler[2]);
-        transform_stamped.transform.translation.x = params_.yaw_joint_to_pitch_joint_tvec[0];
-        transform_stamped.transform.translation.y = params_.yaw_joint_to_pitch_joint_tvec[1];
-        transform_stamped.transform.translation.z = params_.yaw_joint_to_pitch_joint_tvec[2];
+        transform_stamped.transform.translation.x = params_.pitch_joint_to_camera_joint_tvec[0];
+        transform_stamped.transform.translation.y = params_.pitch_joint_to_camera_joint_tvec[1];
+        transform_stamped.transform.translation.z = params_.pitch_joint_to_camera_joint_tvec[2];
         transform_stamped.transform.rotation.x = q.x();
         transform_stamped.transform.rotation.y = q.y();
         transform_stamped.transform.rotation.z = q.z();
@@ -168,6 +163,9 @@ controller_interface::return_type IMUController::update(const rclcpp::Time &time
         dynamic_pub_->sendTransform(transform_stamped);
       }
     }
+    RCLCPP_WARN(logger_, "yaw: %f", yaw_);
+    RCLCPP_WARN(logger_, "pitch: %f", pitch_);
+    RCLCPP_WARN(logger_, "roll: %f", roll_);
   }
   return controller_interface::return_type::OK;
 }
@@ -209,7 +207,13 @@ bool IMUController::export_state_interfaces(sensor_msgs::msg::Imu& state_msg) {
         state_msg.linear_acceleration.y = state.get_value();
       } else if (state.get_interface_name() == "linear_acceleration_z") {
         state_msg.linear_acceleration.z = state.get_value();
-      } 
+      } else if (state.get_interface_name() == "yaw") {
+        yaw_ = state.get_value();
+      } else if (state.get_interface_name() == "pitch") {
+        pitch_ = state.get_value();
+      } else if (state.get_interface_name() == "roll") {
+        roll_ = state.get_value();
+      }
     }
   }
   return true;
