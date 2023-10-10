@@ -83,3 +83,8 @@ omnidirectional_controller:
     default_value: 1000, #rate
     description: "the update rate of gimbal controller",
   }
+  yaw_mid_angle: {
+    type: int,
+    default_value: 0,
+    description: "mid angle of yaw motor",
+  }

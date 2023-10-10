@@ -80,6 +80,12 @@ protected:
     int command_interface_number_;
     int pid_param_number_;
 
+    /**
+     * @brief get yaw diff in rad
+     * 
+     */
+    double read_yaw_encoder();
+
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
@@ -118,7 +124,6 @@ protected:
     bool subscriber_is_active_ = false;
     bool reset();
     void halt();
-
     rclcpp::Logger logger_ = rclcpp::get_logger("OMNIDIRECTIONAL_CONTROLLER");
 };
 
