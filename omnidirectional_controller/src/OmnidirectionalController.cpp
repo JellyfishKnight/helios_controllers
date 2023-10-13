@@ -255,7 +255,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     }
     RCLCPP_DEBUG(logger_, "last x: %f", last_command_msg->twist.linear.x);
     // omnidirectional wheels solve
-    velocity_solver_.solve(*last_command_msg);
+    velocity_solver_.solve(*last_command_msg, read_yaw_encoder());
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
     // caculate pid
@@ -280,6 +280,21 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         }
     }
     return controller_interface::return_type::OK;
+}
+
+double OmnidirectionalController::read_yaw_encoder() {
+    double position = 0;
+    for (const auto &state : state_interfaces_) {
+        if (state.get_prefix_name() == "yaw" && state.get_interface_name() == "position") {
+            position = state.get_value();
+            break;
+        }
+    }
+    if (position == 0) {
+        position = M_PI_4;
+    }
+    // get yaw diff in rad
+    return (position - params_.yaw_mid_angle) / 8196.0 * M_PI;
 }
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {

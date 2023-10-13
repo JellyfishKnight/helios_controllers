@@ -34,8 +34,8 @@ omnidirectional_controller:
     type: double_array,
     default_value: 
     [ #kp  ki   kd   i_max
-      0.018, 0.0, 0.36, 0.0, #1
-      0.019, 0.0, 0.04, 0.0, #2
+      0.018, 0.0, 0.36, 0.0, #2
+      0.019, 0.0, 0.04, 0.0, #1
       0.03, 0.0, 0.15, 0.0, #3
       0.012, 0.0, 0.12, 0.0, #4
     ],
@@ -44,8 +44,8 @@ omnidirectional_controller:
     type: double_array,
     default_value: 
     [ #kp  ki   kd   i_max
-      8.5, 0.0, 0.0, 0.0, #1
-      18.0, 0.0, 0.0, 0.0, #2
+      8.5, 0.0, 0.0, 0.0, #2
+      18.0, 0.0, 0.0, 0.0, #1
       8.8, 0.0, 0.0, 0.0, #3
       10, 0.0, 0.0, 0.0, #4
     ],
@@ -82,4 +82,9 @@ omnidirectional_controller:
     type: int,
     default_value: 1000, #rate
     description: "the update rate of gimbal controller",
+  }
+  yaw_mid_angle: {
+    type: int,
+    default_value: 0,
+    description: "mid angle of yaw motor",
   }
