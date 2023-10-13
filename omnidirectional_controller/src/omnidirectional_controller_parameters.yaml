@@ -1,7 +1,7 @@
 omnidirectional_controller:
   motor_number: {
     type: int,
-    default_value: 4,
+    default_value: 5,
     description: "Number of motors",
   }
   motor_names: {
@@ -24,8 +24,8 @@ omnidirectional_controller:
     type: double_array,
     default_value: 
     [ #can_id motor_type motor_id motor_value 
-      1, 0x200, 1, 0, #1
-      1, 0x200, 2, 0, #2
+      1, 0x200, 2, 0, #1
+      1, 0x200, 1, 0, #2
       1, 0x200, 3, 0, #3
       1, 0x200, 4, 0, #4
     ],
@@ -34,20 +34,20 @@ omnidirectional_controller:
     type: double_array,
     default_value: 
     [ #kp  ki   kd   i_max
-      0.006, 0.0, 0.0, 0.0, #1
-      0.0035, 0.0, 0.0, 0.0, #2
-      0.01, 0.0, 0.0, 0.0, #3
-      0.006, 0.0, 0.0, 0.0, #4
+      0.018, 0.0, 0.36, 0.0, #1
+      0.019, 0.0, 0.04, 0.0, #2
+      0.03, 0.0, 0.15, 0.0, #3
+      0.012, 0.0, 0.12, 0.0, #4
     ],
   }
   motor_vel_pid: {
     type: double_array,
     default_value: 
     [ #kp  ki   kd   i_max
-      5.5, 0.0, 0.0, 0.0, #1
-      3.0, 0.0, 0.0, 0.0, #2
-      4.8, 0.0, 0.0, 0.0, #3
-      5.0, 0.0, 0.0, 0.0, #4
+      8.5, 0.0, 0.0, 0.0, #1
+      18.0, 0.0, 0.0, 0.0, #2
+      8.8, 0.0, 0.0, 0.0, #3
+      10, 0.0, 0.0, 0.0, #4
     ],
   }
   motor_current_pid: {
