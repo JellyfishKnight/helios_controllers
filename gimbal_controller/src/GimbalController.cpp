@@ -25,6 +25,7 @@ controller_interface::CallbackReturn GimbalController::on_init() {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
     }
+    motor_number_ = params_.motor_number;
     // init params
     for (int i = 0; i < motor_number_; i++) {
         // init pid
@@ -123,7 +124,6 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         );
         const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
         received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::SendData>(empty_gimbal_msg));
-
         // initialize command subscriber
         cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::SendData>(
             DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
@@ -179,6 +179,24 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
+    // set yaw pitch to mid angle
+    while (!is_inited_) {
+        int init_cnt = 0;
+        math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
+        for (auto & motor_packet : cmd_map_) {
+            if (motor_packet.second.angle_ - motor_packet.second.mid_angle_ < 10) {
+                init_cnt++;
+            }
+        }
+        if (init_cnt == 2) {
+            is_inited_ = true;
+            break;
+        }
+        for (auto & motor_packet : cmd_map_) {
+            motor_packet.second.value_ = motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_);
+        }
+        is_inited_ = false;
+    }
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
@@ -191,7 +209,8 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
-
+    // get motor states
+    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
@@ -199,7 +218,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         last_command_msg->yaw = 0;
         return controller_interface::return_type::OK;
     }
-
     try {
         if (previous_publish_timestamp_ + publish_period_ < time) {
             previous_publish_timestamp_ += publish_period_;
@@ -221,8 +239,13 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
-    ///TODO: set angle pid values
-
+    // compute pid
+    for (auto & motor_packet : cmd_map_) {
+        auto pitch_motor = cmd_map_.find("pitch");
+        auto yaw_motor = cmd_map_.find("yaw");
+        pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
+        yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
+    }
     // set command values
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -239,13 +262,12 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             }
         }
     }
-
     return controller_interface::return_type::OK;
 }
 
 bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
     state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
-    state_msg.header.frame_id = "chassis";
+    state_msg.header.frame_id = "gimbal";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {
         const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
@@ -263,7 +285,6 @@ bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::MotorS
 }
 
 bool GimbalController::reset(){
-
     return true;
 }
 
