@@ -1,7 +1,7 @@
 omnidirectional_controller:
   motor_number: {
     type: int,
-    default_value: 4,
+    default_value: 5,
     description: "Number of motors",
   }
   motor_names: {
@@ -24,8 +24,8 @@ omnidirectional_controller:
     type: double_array,
     default_value: 
     [ #can_id motor_type motor_id motor_value 
-      1, 0x200, 1, 0, #1
-      1, 0x200, 2, 0, #2
+      1, 0x200, 2, 0, #1
+      1, 0x200, 1, 0, #2
       1, 0x200, 3, 0, #3
       1, 0x200, 4, 0, #4
     ],

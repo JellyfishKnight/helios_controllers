@@ -262,7 +262,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
             cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(wheel_velocities_[i]);
-        RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), cmd_map_.find(params_.motor_names[i])->second.value_);
+        RCLCPP_WARN(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
