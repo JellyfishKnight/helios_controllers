@@ -42,8 +42,8 @@ namespace helios_control {
 #define ANGLE_MODE false
 #define SPEED_MODE true
 
-constexpr auto DEFAULT_COMMAND_TOPIC = "gimbal/cmd";
-constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "gimbal/cmd_out";
+constexpr auto DEFAULT_COMMAND_TOPIC = "gimbal_cmd_angle";
+constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "gimbal_cmd_out";
 
 class GimbalController : public controller_interface::ControllerInterface {
 public:
@@ -74,6 +74,7 @@ public:
     GIMBAL_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
+    bool is_inited_;
     int motor_number_;
 
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
