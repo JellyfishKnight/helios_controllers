@@ -76,6 +76,10 @@ public:
 protected:
     bool is_inited_;
     int motor_number_;
+    int state_interface_number_;
+    int command_interface_number_;
+    int pid_param_number_;
+
 
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;

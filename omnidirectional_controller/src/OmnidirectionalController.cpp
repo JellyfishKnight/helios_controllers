@@ -98,6 +98,7 @@ controller_interface::InterfaceConfiguration OmnidirectionalController::state_in
             conf_names.push_back(joint_name + "/" + state_name);
         }
     }
+    conf_names.push_back("yaw/position");
     return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
 }
 
@@ -262,7 +263,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     for (int i = 0; i < motor_number_; i++) {
         cmd_map_.find(params_.motor_names[i])->second.value_ = 
             cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(wheel_velocities_[i]);
-        RCLCPP_WARN(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
+        RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -290,6 +291,7 @@ double OmnidirectionalController::read_yaw_encoder() {
             break;
         }
     }
+    RCLCPP_INFO(logger_, "yaw: %f", position);
     if (position == 0) {
         return M_PI_4;
     }
