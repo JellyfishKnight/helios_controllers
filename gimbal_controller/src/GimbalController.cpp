@@ -25,36 +25,19 @@ controller_interface::CallbackReturn GimbalController::on_init() {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
     }
-    motor_number_ = params_.motor_number;
+    motor_number_ = static_cast<int>(params_.motor_names.size());
+    state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+    command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
     // init params
     for (int i = 0; i < motor_number_; i++) {
-        // init pid
-        math_utilities::PID pos_pid;
-        math_utilities::PID vel_pid;
-        math_utilities::PID current_pid;
-        pos_pid.set_pid_params(params_.motor_pos_pid[i * motor_number_], 
-                                params_.motor_pos_pid[i * motor_number_ + 1],
-                                params_.motor_pos_pid[i * motor_number_ + 2],
-                                params_.motor_pos_pid[i * motor_number_ + 3]);
-        vel_pid.set_pid_params(params_.motor_vel_pid[i * motor_number_], 
-                                params_.motor_vel_pid[i * motor_number_ + 1],
-                                params_.motor_vel_pid[i * motor_number_ + 2],
-                                params_.motor_vel_pid[i * motor_number_ + 3]);
-        current_pid.set_pid_params(params_.motor_current_pid[i * motor_number_], 
-                                params_.motor_current_pid[i * motor_number_ + 1],
-                                params_.motor_current_pid[i * motor_number_ + 2],
-                                params_.motor_current_pid[i * motor_number_ + 3]);
-
         math_utilities::MotorPacket motor_packet(
             params_.motor_names[i],
-            params_.motor_mid_angle[i],
-            pos_pid,
-            vel_pid,
-            current_pid
+            params_.motor_mid_angle[i]
         );
-        motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
-        motor_packet.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
-        motor_packet.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
+        motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
+        motor_packet.motor_type_ = params_.motor_commands[i * command_interface_number_ + 1];
+        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
+        motor_packet.motor_mode_ = params_.motor_commands[i * command_interface_number_ + 3];
         motor_packet.value_ = params_.motor_mid_angle[i];
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
@@ -91,23 +74,8 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         if (param_listener_->is_old(params_)) {
             params_ = param_listener_->get_params();
             motor_number_ = static_cast<int>(params_.motor_names.size());
-            for (int i = 0; i < motor_number_; i++) {
-                cmd_map_.find(params_.motor_names[i])->second.set_pid_current(
-                    params_.motor_current_pid[i * motor_number_], 
-                    params_.motor_current_pid[i * motor_number_ + 1], 
-                    params_.motor_current_pid[i * motor_number_ + 2],
-                    params_.motor_current_pid[i * motor_number_ + 3]);
-                cmd_map_.find(params_.motor_names[i])->second.set_pid_vel(
-                    params_.motor_vel_pid[i * motor_number_], 
-                    params_.motor_vel_pid[i * motor_number_ + 1], 
-                    params_.motor_vel_pid[i * motor_number_ + 2],
-                    params_.motor_vel_pid[i * motor_number_ + 3]);
-                cmd_map_.find(params_.motor_names[i])->second.set_pid_pos(
-                    params_.motor_pos_pid[i * motor_number_], 
-                    params_.motor_pos_pid[i * motor_number_ + 1], 
-                    params_.motor_pos_pid[i * motor_number_ + 2],
-                    params_.motor_pos_pid[i * motor_number_ + 3]);
-            }
+            state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+            command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
             RCLCPP_DEBUG(logger_, "Parameters were updated");
         }
 
@@ -240,12 +208,10 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
     }
     // compute pid
-    for (auto & motor_packet : cmd_map_) {
-        auto pitch_motor = cmd_map_.find("pitch");
-        auto yaw_motor = cmd_map_.find("yaw");
-        pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
-        yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
-    }
+    auto pitch_motor = cmd_map_.find("pitch");
+    auto yaw_motor = cmd_map_.find("yaw");
+    // pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
+    // yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
     // set command values
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {

@@ -10,11 +10,9 @@
  *
  */
 #include "ShooterController.hpp"
-#include <helios_rs_interfaces/msg/detail/power_heat_data__struct.hpp>
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
-#include <std_msgs/msg/detail/int32__struct.hpp>
 
 namespace helios_control {
 
@@ -30,29 +28,9 @@ controller_interface::CallbackReturn ShooterController::on_init() {
     motor_number_ = static_cast<int>(params_.motor_names.size());
     // init params
     for (int i = 0; i < motor_number_; i++) {
-        // init pid
-        math_utilities::PID pos_pid;
-        math_utilities::PID vel_pid;
-        math_utilities::PID current_pid;
-        pos_pid.set_pid_params(params_.motor_pos_pid[i * motor_number_], 
-                                params_.motor_pos_pid[i * motor_number_ + 1],
-                                params_.motor_pos_pid[i * motor_number_ + 2],
-                                params_.motor_pos_pid[i * motor_number_ + 3]);
-        vel_pid.set_pid_params(params_.motor_vel_pid[i * motor_number_], 
-                                params_.motor_vel_pid[i * motor_number_ + 1],
-                                params_.motor_vel_pid[i * motor_number_ + 2],
-                                params_.motor_vel_pid[i * motor_number_ + 3]);
-        current_pid.set_pid_params(params_.motor_current_pid[i * motor_number_], 
-                                params_.motor_current_pid[i * motor_number_ + 1],
-                                params_.motor_current_pid[i * motor_number_ + 2],
-                                params_.motor_current_pid[i * motor_number_ + 3]);
-
         math_utilities::MotorPacket motor_packet(
             params_.motor_names[i],
-            params_.motor_mid_angle[i],
-            pos_pid,
-            vel_pid,
-            current_pid
+            params_.motor_mid_angle[i]
         );
         motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
         motor_packet.motor_type_ = params_.motor_commands[i * motor_number_ + 1];

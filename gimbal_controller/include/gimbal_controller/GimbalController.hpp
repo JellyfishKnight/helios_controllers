@@ -24,7 +24,6 @@
 
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"
-#include "math_utilities/PID.hpp"
 
 #include <map>
 #include <math_utilities/MotorPacket.hpp>
@@ -76,6 +75,8 @@ public:
 protected:
     bool is_inited_;
     int motor_number_;
+    int state_interface_number_;
+    int command_interface_number_;
 
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
