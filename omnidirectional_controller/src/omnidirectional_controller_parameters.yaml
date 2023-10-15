@@ -7,7 +7,6 @@ omnidirectional_controller:
   motor_names: {
     type: string_array,
     default_value: ["front_left", "front_right", "back_left", "back_right"],
-    # default_value: ["front_left", "front_right", 'back_left'],
     description: "Link names of the motors",
   }
   motor_command_interfaces: {

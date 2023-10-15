@@ -77,6 +77,7 @@ controller_interface::InterfaceConfiguration OmnidirectionalController::state_in
             conf_names.push_back(joint_name + "/" + state_name);
         }
     }
+    conf_names.push_back("yaw/position");
     return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
 }
 
@@ -247,11 +248,12 @@ double OmnidirectionalController::read_yaw_encoder() {
             break;
         }
     }
+    RCLCPP_INFO(logger_, "yaw: %f", position);
     if (position == 0) {
         return M_PI_4;
     }
     // get yaw diff in rad
-    return (position - params_.yaw_mid_angle) / 8196.0 * M_PI;
+    return (position - params_.yaw_mid_angle) / 8196.0 * M_PI * 2;
 }
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {

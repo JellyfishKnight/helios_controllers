@@ -147,6 +147,14 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
+    // update params if they have changed
+    if (param_listener_->is_old(params_)) {
+        params_ = param_listener_->get_params();
+        motor_number_ = static_cast<int>(params_.motor_names.size());
+        state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+        command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+        RCLCPP_DEBUG(logger_, "Parameters were updated");
+    }
     // set yaw pitch to mid angle
     while (!is_inited_) {
         int init_cnt = 0;
@@ -164,11 +172,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             motor_packet.second.value_ = motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_);
         }
         is_inited_ = false;
-    }
-    // update params if they have changed
-    if (param_listener_->is_old(params_)) {
-        params_ = param_listener_->get_params();
-        RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
     // check if command message if nullptr
     std::shared_ptr<helios_rs_interfaces::msg::SendData> last_command_msg;
@@ -239,9 +242,6 @@ bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::MotorS
         const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
         if (motor_packet != cmd_map_.end()) {
             motor_packet->second.set_state_msg(state_msg.motor_states[i]);
-            motor_packet->second.can_id_ = params_.motor_commands[i * motor_number_];
-            motor_packet->second.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
-            motor_packet->second.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
         } else {
             RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
             return false;
