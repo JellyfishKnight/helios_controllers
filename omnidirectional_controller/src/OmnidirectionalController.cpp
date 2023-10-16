@@ -123,7 +123,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
             }
             for (int i = 0; i < msg->motor_states.size(); i++) {
                 if (msg->motor_states[i].full_name == "yaw") {
-                    yaw_position_ = msg->motor_states[i].position;
+                    yaw_position_ = msg->motor_states[i].total_angle;
                     break;
                 }
             }
@@ -244,7 +244,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         auto motor = cmd_map_.find(params_.motor_names[i]);
         motor->second.value_ = wheel_velocities_[i];
         motor->second.set_motor_speed(wheel_velocities_[i]);
-        RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
+        RCLCPP_WARN(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
     }
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
@@ -269,7 +269,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
 double OmnidirectionalController::read_yaw_encoder() {
     // get yaw diff in rad
     // RCLCPP_INFO(logger_, "yaw: %f", (yaw_position_ - params_.yaw_mid_angle) / 8196.0 * M_PI * 2);
-    return (yaw_position_ - params_.yaw_mid_angle) / 8196.0 * M_PI * 2;
+    return (yaw_position_ - params_.yaw_mid_angle) / (8192.0 * 1.5) * M_PI * 2 - 1800.0 / (8192.0 * 1.5) * M_PI * 2;
 }
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
