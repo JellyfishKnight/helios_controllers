@@ -11,7 +11,7 @@ omnidirectional_controller:
   }
   motor_command_interfaces: {
     type: string_array,
-    default_value: ["can_id", "motor_type", "motor_id", "motor_value"],
+    default_value: ["can_id", "motor_type", "motor_mode", "motor_id", "motor_value"],
     description: "Names of command interfaces of the motors",
   }
   motor_state_interfaces: {
@@ -22,50 +22,12 @@ omnidirectional_controller:
   motor_commands: {
     type: double_array,
     default_value: 
-    [ #can_id motor_type motor_id motor_value 
-      1, 0x200, 2, 0, #1
-      1, 0x200, 1, 0, #2
-      1, 0x200, 3, 0, #3
-      1, 0x200, 4, 0, #4
+    [ #can_id motor_type motor_id motor_mode motor_value 
+      1, 0x200, 2, 1, 0, #1
+      1, 0x200, 1, 1, 0, #2
+      1, 0x200, 3, 1, 0, #3
+      1, 0x200, 4, 1, 0, #4
     ],
-  }
-  motor_pos_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.018, 0.0, 0.36, 0.0, #2
-      0.019, 0.0, 0.04, 0.0, #1
-      0.03, 0.0, 0.15, 0.0, #3
-      0.012, 0.0, 0.12, 0.0, #4
-    ],
-  }
-  motor_vel_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      8.5, 0.0, 0.0, 0.0, #2
-      18.0, 0.0, 0.0, 0.0, #1
-      8.8, 0.0, 0.0, 0.0, #3
-      10, 0.0, 0.0, 0.0, #4
-    ],
-  }
-  motor_current_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      0.1, 0.0, 0.0, 0.0, #2
-      0.1, 0.0, 0.0, 0.0, #3
-      0.1, 0.0, 0.0, 0.0, #4
-    ],
-  }
-  motor_mid_angle: {
-    type: int_array,
-    default_value: 
-    [ #1 #2 #3 #4
-      0, 0, 0, 0,
-      # 0, 0, 0,
-    ]
   }
   publish_rate: {
     type: double,

@@ -12,7 +12,7 @@ gimbal_controller:
   }
   motor_command_interfaces: {
     type: string_array,
-    default_value: ["can_id", "motor_type", "motor_id", "motor_value"],
+    default_value: ["can_id", "motor_type", "motor_mode", "motor_id", "motor_mode", "motor_value"],
     description: "Names of command interfaces of the motors",
   }
   motor_state_interfaces: {
@@ -38,33 +38,9 @@ gimbal_controller:
   motor_commands: {
     type: double_array,
     default_value: 
-    [ #can_id motor_types motor_id motor_value 
-      1, 0x141, 1, 0.0, #1
-      # 2, 0x1ff, 0.0, 0.0, #2
-    ],
-  }
-  motor_pos_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      # 0.1, 0.0, 0.0, 0.0, #2
-    ],
-  }
-  motor_vel_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      # 0.1, 0.0, 0.0, 0.0, #2
-    ],
-  }
-  motor_current_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      # 0.1, 0.0, 0.0, 0.0, #2
+    [ #can_id motor_types motor_id motor_mode motor_value 
+      1, 0x144, 1, 0, 0.0, #1
+      2, 0x1ff, 1, 0, 0.0, #2
     ],
   }
   motor_mid_angle: {
