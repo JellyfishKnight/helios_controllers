@@ -10,6 +10,7 @@
  *
  */
 #include "GimbalController.hpp"
+#include <rclcpp/logging.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -91,7 +92,27 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             state_pub_
         );
         const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
+        const helios_rs_interfaces::msg::ImuEuler empty_imu_msg;
         received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::SendData>(empty_gimbal_msg));
+        received_imu_ptr_.set(std::make_shared<helios_rs_interfaces::msg::ImuEuler>(empty_imu_msg));
+        // initialize imu subscriber
+        imu_euler_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::ImuEuler>(
+            "imu_euler_out", rclcpp::SystemDefaultsQoS(), 
+            [this](const std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> msg)->void {
+                if (!subscriber_is_active_) {
+                    RCLCPP_WARN(logger_, "Can't accept new imu_euler. subscriber is inactive");
+                    return ;
+                }
+                if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
+                    RCLCPP_WARN_ONCE(logger_,
+                        "Received TwistStamped with zero timestamp, setting it to current "
+                        "time, this message will only be shown once"
+                    );
+                    msg->header.stamp = get_node()->get_clock()->now();
+                }
+                received_imu_ptr_.set(std::move(msg));
+            }
+        );
         // initialize command subscriber
         cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::SendData>(
             DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
@@ -147,6 +168,22 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
+    for (int i = 0; i < command_interfaces_.size(); i++) {
+        auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+        if (motor_cmd != cmd_map_.end()) {
+            if (command_interfaces_[i].get_interface_name() == "can_id") {
+                command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                command_interfaces_[i].set_value(motor_cmd->second.value_);
+            }
+        }
+    }
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
@@ -155,24 +192,38 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
-    // // set yaw pitch to mid angle
-    // while (!is_inited_) {
-    //     int init_cnt = 0;
-    //     math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-    //     for (auto & motor_packet : cmd_map_) {
-    //         if (motor_packet.second.angle_ - motor_packet.second.mid_angle_ < 10) {
-    //             init_cnt++;
-    //         }
-    //     }
-    //     if (init_cnt == 2) {
-    //         is_inited_ = true;
-    //         break;
-    //     }
-    //     for (auto & motor_packet : cmd_map_) {
-    //         motor_packet.second.value_ = motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_);
-    //     }
-    //     is_inited_ = false;
-    // }
+    // set yaw pitch to mid angle
+    std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> imu_msg;
+    if (!is_inited_) {
+        //check if imu message if nullptr
+        received_imu_ptr_.get(imu_msg);
+        math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
+        for (auto & motor_packet : cmd_map_) {
+            motor_packet.second.value_ = motor_packet.second.angle_;
+            // motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_, imu_msg->total_yaw);
+        }
+        for (int i = 0; i < command_interfaces_.size(); i++) {
+            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+            if (motor_cmd != cmd_map_.end()) {
+                if (command_interfaces_[i].get_interface_name() == "can_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                    command_interfaces_[i].set_value(3);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                    command_interfaces_[i].set_value(motor_cmd->second.value_);
+                }
+            }
+        }
+        RCLCPP_WARN(logger_, "finished init");
+        is_inited_ = true;
+        return controller_interface::return_type::OK;
+    }
+
+    received_imu_ptr_.get(imu_msg); // get imu message
     //check if command message if nullptr
     std::shared_ptr<helios_rs_interfaces::msg::SendData> last_command_msg;
     received_gimbal_cmd_ptr_.get(last_command_msg);
@@ -211,8 +262,12 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
     }
     // compute pid
-    auto pitch_motor = cmd_map_.find("pitch");
+    // auto pitch_motor = cmd_map_.find("pitch");
     auto yaw_motor = cmd_map_.find("yaw");
+    yaw_motor->second.value_ = last_command_msg->yaw;
+    // pitch_motor->second.value_ = last_command_msg->pitch;
+    yaw_motor->second.set_motor_angle(last_command_msg->yaw, imu_msg->total_yaw);
+    // pitch_motor->second.set_motor_angle(last_command_msg->pitch);
     // pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
     // yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
     // set command values
@@ -226,7 +281,9 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
                 command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
                 command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "value") {
+            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
                 command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
         }

@@ -267,11 +267,8 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
 }
 
 double OmnidirectionalController::read_yaw_encoder() {
-    // RCLCPP_INFO(logger_, "yaw: %f", yaw_position_);
-    if (yaw_position_ == 0) {
-        return M_PI_4;
-    }
     // get yaw diff in rad
+    // RCLCPP_INFO(logger_, "yaw: %f", (yaw_position_ - params_.yaw_mid_angle) / 8196.0 * M_PI * 2);
     return (yaw_position_ - params_.yaw_mid_angle) / 8196.0 * M_PI * 2;
 }
 
