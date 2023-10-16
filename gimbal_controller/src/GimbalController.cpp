@@ -90,48 +90,47 @@ controller_interface::InterfaceConfiguration GimbalController::state_interface_c
 }
 
 controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp_lifecycle::State &previous_state) {
-        // update parameters if they have changed
-        if (param_listener_->is_old(params_)) {
-            params_ = param_listener_->get_params();
-            motor_number_ = static_cast<int>(params_.motor_names.size());
-            RCLCPP_DEBUG(logger_, "Parameters were updated");
-        }
-
-        cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
-        if (!reset()) {
-            return controller_interface::CallbackReturn::ERROR;
-        }
-        // create publisher
-        state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
-            DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
-        );
-        realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
-            state_pub_
-        );
-        const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
-        received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::SendData>(empty_gimbal_msg));
-        // initialize command subscriber
-        cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::SendData>(
-            DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
-            [this](const std::shared_ptr<helios_rs_interfaces::msg::SendData> msg)->void {
-                if (!subscriber_is_active_) {
-                    RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
-                    return ;
-                }
-                if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
-                    RCLCPP_WARN_ONCE(logger_,
-                        "Received TwistStamped with zero timestamp, setting it to current "
-                        "time, this message will only be shown once"
-                    );
-                    msg->header.stamp = get_node()->get_clock()->now();
-                }
-                received_gimbal_cmd_ptr_.set(std::move(msg));
+    // update parameters if they have changed
+    if (param_listener_->is_old(params_)) {
+        params_ = param_listener_->get_params();
+        motor_number_ = static_cast<int>(params_.motor_names.size());
+        RCLCPP_DEBUG(logger_, "Parameters were updated");
+    }
+    cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
+    if (!reset()) {
+        return controller_interface::CallbackReturn::ERROR;
+    }
+    // create publisher
+    state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
+        DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
+    );
+    realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
+        state_pub_
+    );
+    const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
+    received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::SendData>(empty_gimbal_msg));
+    // initialize command subscriber
+    cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::SendData>(
+        DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
+        [this](const std::shared_ptr<helios_rs_interfaces::msg::SendData> msg)->void {
+            if (!subscriber_is_active_) {
+                RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
+                return ;
             }
-        );
-        // set publish rate
-        publish_rate_ = params_.publish_rate;
-        publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
-        return controller_interface::CallbackReturn::SUCCESS;
+            if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
+                RCLCPP_WARN_ONCE(logger_,
+                    "Received TwistStamped with zero timestamp, setting it to current "
+                    "time, this message will only be shown once"
+                );
+                msg->header.stamp = get_node()->get_clock()->now();
+            }
+            received_gimbal_cmd_ptr_.set(std::move(msg));
+        }
+    );
+    // set publish rate
+    publish_rate_ = params_.publish_rate;
+    publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
+    return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn GimbalController::on_activate(const rclcpp_lifecycle::State & previous_state) {
@@ -191,25 +190,25 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
-    // set yaw pitch to mid angle
-    while (!is_inited_) {
-        int init_cnt = 0;
-        math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-        for (auto & motor_packet : cmd_map_) {
-            if (motor_packet.second.angle_ - motor_packet.second.mid_angle_ < 10) {
-                init_cnt++;
-            }
-        }
-        if (init_cnt == 2) {
-            is_inited_ = true;
-            break;
-        }
-        for (auto & motor_packet : cmd_map_) {
-            motor_packet.second.value_ = motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_);
-        }
-        is_inited_ = false;
-    }
-    // check if command message if nullptr
+    // // set yaw pitch to mid angle
+    // while (!is_inited_) {
+    //     int init_cnt = 0;
+    //     math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
+    //     for (auto & motor_packet : cmd_map_) {
+    //         if (motor_packet.second.angle_ - motor_packet.second.mid_angle_ < 10) {
+    //             init_cnt++;
+    //         }
+    //     }
+    //     if (init_cnt == 2) {
+    //         is_inited_ = true;
+    //         break;
+    //     }
+    //     for (auto & motor_packet : cmd_map_) {
+    //         motor_packet.second.value_ = motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_);
+    //     }
+    //     is_inited_ = false;
+    // }
+    //check if command message if nullptr
     std::shared_ptr<helios_rs_interfaces::msg::SendData> last_command_msg;
     received_gimbal_cmd_ptr_.get(last_command_msg);
     if (last_command_msg == nullptr) {

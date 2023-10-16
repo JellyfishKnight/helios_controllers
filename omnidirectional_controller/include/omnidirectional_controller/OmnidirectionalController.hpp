@@ -92,6 +92,9 @@ protected:
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_gimbal_cmd_ptr_;
 
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<helios_rs_interfaces::msg::MotorStates>::SharedPtr yaw_position_sub_;
+
+    double yaw_position_ = 0;
     // Parameters from ROS for OmnidirectionalController
     std::shared_ptr<ParamsListener> param_listener_;
     Params params_;
