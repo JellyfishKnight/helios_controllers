@@ -12,7 +12,7 @@ gimbal_controller:
   }
   motor_command_interfaces: {
     type: string_array,
-    default_value: ["can_id", "motor_type", "motor_mode", "motor_id", "motor_mode", "motor_value"],
+    default_value: ["can_id", "motor_type", "motor_id", "motor_mode", "motor_value"],
     description: "Names of command interfaces of the motors",
   }
   motor_state_interfaces: {

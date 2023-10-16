@@ -35,10 +35,10 @@ controller_interface::CallbackReturn GimbalController::on_init() {
             params_.motor_mid_angle[i]
         );
         motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
-        motor_packet.motor_type_ = params_.motor_commands[i * command_interface_number_ + 1];
+        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
         motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
-        motor_packet.motor_mode_ = params_.motor_commands[i * command_interface_number_ + 3];
-        motor_packet.value_ = params_.motor_mid_angle[i];
+        motor_packet.motor_mode_ = static_cast<uint8_t>(params_.motor_commands[i * command_interface_number_ + 3]);
+        motor_packet.value_ = params_.motor_commands[i * command_interface_number_ + 4];
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }

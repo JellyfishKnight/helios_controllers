@@ -46,42 +46,6 @@ shooter_controller:
       0.0, 0.0, 0.0, 0.0, #6
     ],
   }
-  motor_pos_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      0.1, 0.0, 0.0, 0.0, #2
-      0.1, 0.0, 0.0, 0.0, #3
-      0.1, 0.0, 0.0, 0.0, #4
-      0.1, 0.0, 0.0, 0.0, #5
-      0.1, 0.0, 0.0, 0.0, #6
-    ],
-  }
-  motor_vel_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      0.1, 0.0, 0.0, 0.0, #2
-      0.1, 0.0, 0.0, 0.0, #3
-      0.1, 0.0, 0.0, 0.0, #4
-      0.1, 0.0, 0.0, 0.0, #5
-      0.1, 0.0, 0.0, 0.0, #6
-    ],
-  }
-  motor_current_pid: {
-    type: double_array,
-    default_value: 
-    [ #kp  ki   kd   i_max
-      0.1, 0.0, 0.0, 0.0, #1
-      0.1, 0.0, 0.0, 0.0, #2
-      0.1, 0.0, 0.0, 0.0, #3
-      0.1, 0.0, 0.0, 0.0, #4
-      0.1, 0.0, 0.0, 0.0, #5
-      0.1, 0.0, 0.0, 0.0, #6
-    ],
-  }
   motor_mid_angle: {
     type: double_array,
     default_value: 

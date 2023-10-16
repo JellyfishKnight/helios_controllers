@@ -45,8 +45,8 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         );
         motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
         motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
-        motor_packet.motor_mode_ = static_cast<uint8_t>(params_.motor_commands[i * command_interface_number_ + 2]);
-        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 3];
+        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
+        motor_packet.motor_mode_ = static_cast<uint8_t>(params_.motor_commands[i * command_interface_number_ + 3]);
         motor_packet.value_ = params_.motor_commands[i * command_interface_number_ + 4];
         // RCLCPP_DEBUG the motor packet info
         RCLCPP_DEBUG(logger_, "can_id %d, motor_type: %d, motor_id: %d", motor_packet.can_id_, motor_packet.motor_type_, motor_packet.motor_id_);
@@ -256,6 +256,8 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
                 command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
                 command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
                 command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
