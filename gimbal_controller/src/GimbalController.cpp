@@ -10,6 +10,8 @@
  *
  */
 #include "GimbalController.hpp"
+#include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
+#include <memory>
 #include <rclcpp/logging.hpp>
 #include <string>
 #include <utility>
@@ -93,8 +95,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         );
         const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
         const helios_rs_interfaces::msg::ImuEuler empty_imu_msg;
+        const geometry_msgs::msg::TwistStamped empty_chassis_msg;
         received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::SendData>(empty_gimbal_msg));
         received_imu_ptr_.set(std::make_shared<helios_rs_interfaces::msg::ImuEuler>(empty_imu_msg));
+        received_chassis_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_chassis_msg));
         // initialize imu subscriber
         imu_euler_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::ImuEuler>(
             "imu_euler_out", rclcpp::SystemDefaultsQoS(), 
@@ -113,6 +117,25 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                 received_imu_ptr_.set(std::move(msg));
             }
         );
+        // initialize chassis subscriber
+        chassis_cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
+            "cmd_vel", rclcpp::SystemDefaultsQoS(), 
+            [this](const std::shared_ptr<geometry_msgs::msg::TwistStamped> msg)->void {
+                if (!subscriber_is_active_) {
+                    RCLCPP_WARN(logger_, "Can't accept new chassis_cmd. subscriber is inactive");
+                    return ;
+                }
+                if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
+                    RCLCPP_WARN_ONCE(logger_,
+                        "Received TwistStamped with zero timestamp, setting it to current "
+                        "time, this message will only be shown once"
+                    );
+                    msg->header.stamp = get_node()->get_clock()->now();
+                }
+                received_chassis_cmd_ptr_.set(std::move(msg));
+            }
+        );
+        
         // initialize command subscriber
         cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::SendData>(
             DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
@@ -222,8 +245,13 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         is_inited_ = true;
         return controller_interface::return_type::OK;
     }
-
     received_imu_ptr_.get(imu_msg); // get imu message
+    std::shared_ptr<geometry_msgs::msg::TwistStamped> chassis_msg;
+    received_chassis_cmd_ptr_.get(chassis_msg); // get chassis message
+    if (chassis_msg == nullptr) {
+        RCLCPP_ERROR(logger_, "chassis message received was a nullptr");
+        return controller_interface::return_type::ERROR;
+    }
     //check if command message if nullptr
     std::shared_ptr<helios_rs_interfaces::msg::SendData> last_command_msg;
     received_gimbal_cmd_ptr_.get(last_command_msg);
@@ -266,7 +294,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     auto yaw_motor = cmd_map_.find("yaw");
     yaw_motor->second.value_ = last_command_msg->yaw;
     // pitch_motor->second.value_ = last_command_msg->pitch;
-    yaw_motor->second.set_motor_angle(last_command_msg->yaw, imu_msg->total_yaw);
+    yaw_motor->second.set_motor_angle(last_command_msg->yaw, imu_msg->total_yaw, chassis_msg->twist.angular.z);
     // pitch_motor->second.set_motor_angle(last_command_msg->pitch);
     // pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
     // yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
