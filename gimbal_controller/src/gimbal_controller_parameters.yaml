@@ -1,13 +1,12 @@
 gimbal_controller:
   motor_number: {
     type: int,
-    default_value: 1,
+    default_value: 2,
     description: "Number of motors",
   }
   motor_names: {
     type: string_array,
-    # default_value: ["yaw", "pitch"],
-    default_value: ["yaw"],
+    default_value: ["yaw", "pitch"],
     description: "Link names of the motors",
   }
   motor_command_interfaces: {
@@ -40,7 +39,7 @@ gimbal_controller:
     default_value: 
     [ #can_id motor_types motor_id motor_mode motor_value 
       1, 0x140, 1, 2, 0.0, #1
-      # 2, 0x1ff, 1, 0, 0.0, #2
+      2, 0x1ff, 2, 2, 0.0, #2
     ],
   }
   motor_mid_angle: {
@@ -48,6 +47,6 @@ gimbal_controller:
     default_value: 
     [ #1   #2 
       # 0.0, 0.0,
-      1400.0,
+      1400.0, 2250.0
     ]
   }

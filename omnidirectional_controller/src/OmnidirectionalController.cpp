@@ -115,35 +115,12 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     empty_gimbal_msg.twist.angular.z = 0;
     received_gimbal_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_gimbal_msg));
 
-    // yaw_position_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::MotorStates>(
-    //     "gimbal_cmd_out", rclcpp::SystemDefaultsQoS(),
-    //     [this](helios_rs_interfaces::msg::MotorStates::SharedPtr msg)->void {
-    //         if (!subscriber_is_active_) {
-    //             RCLCPP_WARN(logger_, "Can't accept yaw state. subscriber is inactive");
-    //             return ;
-    //         }
-    //         if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
-    //             RCLCPP_WARN_ONCE(logger_,
-    //                 "Received MotorStates with zero timestamp, setting it to current "
-    //                 "time, this message will only be shown once"
-    //             );
-    //             msg->header.stamp = get_node()->get_clock()->now();
-    //         }
-    //         for (int i = 0; i < msg->motor_states.size(); i++) {
-    //             if (msg->motor_states[i].full_name == "yaw") {
-    //                 yaw_position_ = msg->motor_states[i].total_angle;
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // );
-
     // initialize command subscriber
     cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
         DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
         [this](geometry_msgs::msg::TwistStamped::SharedPtr msg)->void {
             if (!subscriber_is_active_) {
-                RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
+                RCLCPP_WARN_ONCE(logger_, "Can't accept new commands. subscriber is inactive");
                 return ;
             }
             if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
@@ -152,6 +129,10 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
                     "time, this message will only be shown once"
                 );
                 msg->header.stamp = get_node()->get_clock()->now();
+            }
+            if (msg->header.frame_id.empty()) {
+                RCLCPP_WARN_ONCE(logger_, "Received TwistStamped without frame_id, default set to imu");
+                msg->header.frame_id = "imu";
             }
             // transform received twist to chassis frame
             if (tf2_buffer_->canTransform("chassis", msg->header.frame_id, msg->header.stamp)) {

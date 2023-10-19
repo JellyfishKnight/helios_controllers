@@ -107,7 +107,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             "imu_euler_out", rclcpp::SystemDefaultsQoS(), 
             [this](const std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> msg)->void {
                 if (!subscriber_is_active_) {
-                    RCLCPP_WARN(logger_, "Can't accept new imu_euler. subscriber is inactive");
+                    RCLCPP_WARN_ONCE(logger_, "Can't accept new imu_euler. subscriber is inactive");
                     return ;
                 }
                 if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
@@ -125,7 +125,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             "cmd_vel", rclcpp::SystemDefaultsQoS(), 
             [this](const std::shared_ptr<geometry_msgs::msg::TwistStamped> msg)->void {
                 if (!subscriber_is_active_) {
-                    RCLCPP_WARN(logger_, "Can't accept new chassis_cmd. subscriber is inactive");
+                    RCLCPP_WARN_ONCE(logger_, "Can't accept new chassis_cmd. subscriber is inactive");
                     return ;
                 }
                 if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
@@ -144,7 +144,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
             [this](const std::shared_ptr<helios_rs_interfaces::msg::SendData> msg)->void {
                 if (!subscriber_is_active_) {
-                    RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
+                    RCLCPP_WARN_ONCE(logger_, "Can't accept new commands. subscriber is inactive");
                     return ;
                 }
                 if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
@@ -153,6 +153,12 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                         "time, this message will only be shown once"
                     );
                     msg->header.stamp = get_node()->get_clock()->now();
+                }
+                // limit the max angle of up and down
+                if (msg->pitch > 4250) {
+                    msg->pitch = 4250;
+                } else if (msg->pitch < 1200) {
+                    msg->pitch = 1200;
                 }
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
@@ -218,7 +224,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
-    // set yaw pitch to mid angle
+    // // set yaw pitch to mid angle
     std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> imu_msg;
     if (!is_inited_) {
         //check if imu message if nullptr
@@ -293,14 +299,13 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
     }
     // compute pid
-    // auto pitch_motor = cmd_map_.find("pitch");
+    auto pitch_motor = cmd_map_.find("pitch");
     auto yaw_motor = cmd_map_.find("yaw");
     yaw_motor->second.value_ = last_command_msg->yaw;
     // pitch_motor->second.value_ = last_command_msg->pitch;
     yaw_motor->second.set_motor_angle(last_command_msg->yaw, imu_msg->total_yaw, chassis_msg->twist.angular.z);
-    // pitch_motor->second.set_motor_angle(last_command_msg->pitch);
+    pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
     // pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
-    // yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
@@ -308,9 +313,9 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.child_frame_id = "chassis";
     ts.transform.translation.x = 0;
     ts.transform.translation.y = 0;
-    ts.transform.translation.z = 0;
+    ts.transform.translation.z = -0.30;
     tf2::Quaternion q;
-    q.setEuler(0, 0, yaw_motor->second.total_angle_ / (8192.0 * 1.5) * 2 * M_PI);
+    q.setEuler(0, 0, yaw_motor->second.total_angle_ / (8192.0 * 1.5) * 2 * M_PI + imu_msg->total_yaw + imu_msg->init_yaw);
     ts.transform.rotation.w = q.w();
     ts.transform.rotation.x = q.x();
     ts.transform.rotation.y = q.y();
