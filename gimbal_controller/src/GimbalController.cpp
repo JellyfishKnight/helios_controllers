@@ -93,6 +93,9 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
             state_pub_
         );
+        // create tf2 transform broadcaster
+        dynamic_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this->get_node());
+        // create subscribers
         const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
         const helios_rs_interfaces::msg::ImuEuler empty_imu_msg;
         const geometry_msgs::msg::TwistStamped empty_chassis_msg;
@@ -298,6 +301,21 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     // pitch_motor->second.set_motor_angle(last_command_msg->pitch);
     // pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
     // yaw_motor->second.value_ = yaw_motor->second.set_motor_angle(last_command_msg->yaw); // yaw
+    // publish tf2 transform from imu to chassis
+    geometry_msgs::msg::TransformStamped ts;
+    ts.header.stamp = this->get_node()->now();
+    ts.header.frame_id = "imu";
+    ts.child_frame_id = "chassis";
+    ts.transform.translation.x = 0;
+    ts.transform.translation.y = 0;
+    ts.transform.translation.z = 0;
+    tf2::Quaternion q;
+    q.setEuler(0, 0, yaw_motor->second.total_angle_ / (8192.0 * 1.5) * 2 * M_PI);
+    ts.transform.rotation.w = q.w();
+    ts.transform.rotation.x = q.x();
+    ts.transform.rotation.y = q.y();
+    ts.transform.rotation.z = q.z();
+    dynamic_broadcaster_->sendTransform(ts);
     // set command values
     // convert into command_interfaces
     for (int i = 0; i < command_interfaces_.size(); i++) {
