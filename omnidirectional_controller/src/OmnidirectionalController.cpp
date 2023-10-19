@@ -269,7 +269,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
 double OmnidirectionalController::read_yaw_encoder() {
     // get yaw diff in rad
     // RCLCPP_INFO(logger_, "yaw: %f", (yaw_position_ - params_.yaw_mid_angle) / 8196.0 * M_PI * 2);
-    return (yaw_position_ - params_.yaw_mid_angle) / (8192.0 * 1.5) * M_PI * 2 - 1400.0 / (8192.0 * 1.5) * M_PI * 2;
+    return (yaw_position_ - params_.yaw_mid_angle) / (8192.0 * 1.5) * M_PI * 2 - 1000.0 / (8192.0 * 1.5) * M_PI * 2;
 }
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
