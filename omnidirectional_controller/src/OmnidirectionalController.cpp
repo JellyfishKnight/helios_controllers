@@ -107,28 +107,28 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     empty_gimbal_msg.twist.angular.z = 0;
     received_gimbal_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_gimbal_msg));
 
-    yaw_position_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::MotorStates>(
-        "gimbal_cmd_out", rclcpp::SystemDefaultsQoS(),
-        [this](helios_rs_interfaces::msg::MotorStates::SharedPtr msg)->void {
-            if (!subscriber_is_active_) {
-                RCLCPP_WARN(logger_, "Can't accept yaw state. subscriber is inactive");
-                return ;
-            }
-            if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
-                RCLCPP_WARN_ONCE(logger_,
-                    "Received MotorStates with zero timestamp, setting it to current "
-                    "time, this message will only be shown once"
-                );
-                msg->header.stamp = get_node()->get_clock()->now();
-            }
-            for (int i = 0; i < msg->motor_states.size(); i++) {
-                if (msg->motor_states[i].full_name == "yaw") {
-                    yaw_position_ = msg->motor_states[i].total_angle;
-                    break;
-                }
-            }
-        }
-    );
+    // yaw_position_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::MotorStates>(
+    //     "gimbal_cmd_out", rclcpp::SystemDefaultsQoS(),
+    //     [this](helios_rs_interfaces::msg::MotorStates::SharedPtr msg)->void {
+    //         if (!subscriber_is_active_) {
+    //             RCLCPP_WARN(logger_, "Can't accept yaw state. subscriber is inactive");
+    //             return ;
+    //         }
+    //         if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
+    //             RCLCPP_WARN_ONCE(logger_,
+    //                 "Received MotorStates with zero timestamp, setting it to current "
+    //                 "time, this message will only be shown once"
+    //             );
+    //             msg->header.stamp = get_node()->get_clock()->now();
+    //         }
+    //         for (int i = 0; i < msg->motor_states.size(); i++) {
+    //             if (msg->motor_states[i].full_name == "yaw") {
+    //                 yaw_position_ = msg->motor_states[i].total_angle;
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // );
 
     // initialize command subscriber
     cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
@@ -144,6 +144,13 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
                     "time, this message will only be shown once"
                 );
                 msg->header.stamp = get_node()->get_clock()->now();
+            }
+            // transform received twist to chassis frame
+            if (tf2_buffer_->canTransform("chassis", msg->header.frame_id, msg->header.stamp)) {
+                geometry_msgs::msg::TwistStamped tw_s;
+                tw_s.header = msg->header;
+                tw_s.twist = msg->twist;
+                *msg = tf2_buffer_->transform(tw_s, msg->header.frame_id);
             }
             received_gimbal_cmd_ptr_.set(std::move(msg));
         }
@@ -237,7 +244,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         }
     }
     // omnidirectional wheels solve
-    velocity_solver_.solve(*last_command_msg, read_yaw_encoder());
+    velocity_solver_.solve(*last_command_msg);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
     for (int i = 0; i < motor_number_; i++) {
