@@ -22,12 +22,14 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "helios_rs_interfaces/msg/motor_state.hpp"
 #include "helios_rs_interfaces/msg/motor_states.hpp"
+#include "std_msgs/msg/float64.hpp"
 
 #include "tf2/convert.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include <memory>
+#include <std_msgs/msg/detail/float64__struct.hpp>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/create_timer_ros.h>
 #include <tf2/LinearMath/Matrix3x3.h>
@@ -38,6 +40,7 @@
 #include <vector>
 #include <queue>
 #include <string>
+#include <chrono>
 #include <map>
 
 #include "math_utilities/OmnidirectionalSolver.hpp"
@@ -98,15 +101,16 @@ protected:
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_gimbal_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<std_msgs::msg::Float64>> received_yaw_diff_ptr_;
 
     // tf utilities
     tf2_ros::Buffer::SharedPtr tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_sub_;
-    rclcpp::Subscription<helios_rs_interfaces::msg::MotorStates>::SharedPtr yaw_position_sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr yaw_position_sub_;
 
-    double yaw_position_ = 0;
+    double yaw_diff_ = 0;
     // Parameters from ROS for OmnidirectionalController
     std::shared_ptr<ParamsListener> param_listener_;
     Params params_;

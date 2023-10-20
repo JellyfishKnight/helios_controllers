@@ -14,10 +14,13 @@
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
 #include <helios_rs_interfaces/msg/detail/motor_state__struct.hpp>
+#include <iterator>
 #include <limits>
 #include <math_utilities/MotorPacket.hpp>
 #include <memory>
 #include <rclcpp/logging.hpp>
+#include <rclcpp/qos.hpp>
+#include <std_msgs/msg/detail/float64__struct.hpp>
 #include <string>
 #include <tf2_ros/buffer.h>
 #include <utility>
@@ -93,11 +96,11 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
     // init tf2 utilities
-    tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_node()->get_clock());
-    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(this->get_node()->get_node_base_interface(), 
-                                                                this->get_node()->get_node_timers_interface());
-    tf2_buffer_->setCreateTimerInterface(timer_interface);
-    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+    // tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_node()->get_clock());
+    // auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(this->get_node()->get_node_base_interface(), 
+    //                                                             this->get_node()->get_node_timers_interface());
+    // tf2_buffer_->setCreateTimerInterface(timer_interface);
+    // tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
     cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
     // create publisher
     state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
@@ -114,7 +117,16 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     empty_gimbal_msg.twist.angular.y = 0;
     empty_gimbal_msg.twist.angular.z = 0;
     received_gimbal_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_gimbal_msg));
-
+    // initialize yaw diff subscriber
+    yaw_position_sub_ = get_node()->create_subscription<std_msgs::msg::Float64>(
+        "yaw_diff_i2c", rclcpp::SystemDefaultsQoS(), [this](std_msgs::msg::Float64::SharedPtr msg)->void {
+            if (!subscriber_is_active_) {
+                RCLCPP_WARN_ONCE(logger_, "Can't accept new commands. subscriber is inactive");
+                return ;
+            }
+            received_yaw_diff_ptr_.set(std::move(msg));
+        }
+    );
     // initialize command subscriber
     cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
         DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
@@ -134,13 +146,13 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
                 RCLCPP_WARN_ONCE(logger_, "Received TwistStamped without frame_id, default set to imu");
                 msg->header.frame_id = "imu";
             }
-            // transform received twist to chassis frame
-            if (tf2_buffer_->canTransform("chassis", msg->header.frame_id, msg->header.stamp)) {
-                geometry_msgs::msg::TwistStamped tw_s;
-                tw_s.header = msg->header;
-                tw_s.twist = msg->twist;
-                *msg = tf2_buffer_->transform(tw_s, msg->header.frame_id);
-            }
+            // // transform received twist to chassis frame
+            // if (tf2_buffer_->canTransform("chassis", msg->header.frame_id, msg->header.stamp)) {
+            //     geometry_msgs::msg::TwistStamped tw_s;
+            //     tw_s.header = msg->header;
+            //     tw_s.twist = msg->twist;
+            //     *msg = tf2_buffer_->transform(tw_s, msg->header.frame_id);
+            // }
             received_gimbal_cmd_ptr_.set(std::move(msg));
         }
     );
@@ -191,12 +203,13 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     }
     // check if command message if nullptr
     std::shared_ptr<geometry_msgs::msg::TwistStamped> last_command_msg;
+    std::shared_ptr<std_msgs::msg::Float64> last_yaw_diff_msg;
+    received_yaw_diff_ptr_.get(last_yaw_diff_msg);
     received_gimbal_cmd_ptr_.get(last_command_msg);
-    if (last_command_msg == nullptr) {
-        RCLCPP_ERROR(logger_, "command message received was a nullptr");
+    if (last_command_msg == nullptr || last_yaw_diff_msg == nullptr) {
+        RCLCPP_ERROR(logger_, "command message or yaw diff received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
-
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
@@ -233,7 +246,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         }
     }
     // omnidirectional wheels solve
-    velocity_solver_.solve(*last_command_msg);
+    velocity_solver_.solve(*last_command_msg, last_yaw_diff_msg->data);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
     for (int i = 0; i < motor_number_; i++) {
@@ -243,7 +256,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
     }
     // convert into command_interfaces
-    for (int i = 0; i < command_interfaces_.size(); i++) {
+    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
             if (command_interfaces_[i].get_interface_name() == "can_id") {
@@ -260,12 +273,6 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         }
     }
     return controller_interface::return_type::OK;
-}
-
-double OmnidirectionalController::read_yaw_encoder() {
-    // get yaw diff in rad
-    // RCLCPP_INFO(logger_, "yaw: %f", (yaw_position_ - params_.yaw_mid_angle) / 8196.0 * M_PI * 2);
-    return (yaw_position_ - params_.yaw_mid_angle) / (8192.0 * 1.5) * M_PI * 2 - 1000.0 / (8192.0 * 1.5) * M_PI * 2;
 }
 
 bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {

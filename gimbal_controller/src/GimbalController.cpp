@@ -10,9 +10,14 @@
  *
  */
 #include "GimbalController.hpp"
+#include <cmath>
+#include <cstddef>
 #include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
+#include <iterator>
 #include <memory>
 #include <rclcpp/logging.hpp>
+#include <rclcpp/qos.hpp>
+#include <std_msgs/msg/detail/float64__struct.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -90,6 +95,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
             DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
         );
+        yaw_diff_pub_ = get_node()->create_publisher<std_msgs::msg::Float64>("yaw_diff_i2c", rclcpp::SystemDefaultsQoS());
         realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
             state_pub_
         );
@@ -200,7 +206,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
-    for (int i = 0; i < command_interfaces_.size(); i++) {
+    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
             if (command_interfaces_[i].get_interface_name() == "can_id") {
@@ -234,7 +240,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             motor_packet.second.value_ = motor_packet.second.angle_;
             // motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_, imu_msg->total_yaw);
         }
-        for (int i = 0; i < command_interfaces_.size(); i++) {
+        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
             auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
             if (motor_cmd != cmd_map_.end()) {
                 if (command_interfaces_[i].get_interface_name() == "can_id") {
@@ -287,6 +293,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         previous_publish_timestamp_ = time;
         should_publish_ = true;
     }
+
     // publish gimbal states
     if (should_publish_) {
         if (realtime_gimbal_state_pub_->trylock()) {
@@ -315,15 +322,21 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.transform.translation.y = 0;
     ts.transform.translation.z = -0.30;
     tf2::Quaternion q;
-    q.setEuler(0, 0, yaw_motor->second.total_angle_ / (8192.0 * 1.5) * 2 * M_PI + imu_msg->total_yaw + imu_msg->init_yaw);
+    double diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, (8192.0 * 1.5)) / (8192 * 1.5) * 2 * M_PI) 
+                                            -fmod((imu_msg->total_yaw + imu_msg->init_yaw), 360.0) / 360.0 * 2 * M_PI;
+    q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
+    RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();
     ts.transform.rotation.x = q.x();
     ts.transform.rotation.y = q.y();
     ts.transform.rotation.z = q.z();
     dynamic_broadcaster_->sendTransform(ts);
+    std_msgs::msg::Float64 yaw_diff_msg;
+    yaw_diff_msg.data = diff_yaw_from_imu_to_chassis;
+    yaw_diff_pub_->publish(yaw_diff_msg);
     // set command values
     // convert into command_interfaces
-    for (int i = 0; i < command_interfaces_.size(); i++) {
+    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
             if (command_interfaces_[i].get_interface_name() == "can_id") {
