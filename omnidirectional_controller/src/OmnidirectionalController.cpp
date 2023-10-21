@@ -10,17 +10,13 @@
  *
  */
 #include "OmnidirectionalController.hpp"
-#include <asm-generic/errno.h>
-#include <geometry_msgs/msg/detail/twist__struct.hpp>
-#include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
-#include <helios_rs_interfaces/msg/detail/motor_state__struct.hpp>
+#include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <iterator>
 #include <limits>
 #include <math_utilities/MotorPacket.hpp>
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
-#include <std_msgs/msg/detail/float64__struct.hpp>
 #include <string>
 #include <tf2_ros/buffer.h>
 #include <utility>
@@ -102,6 +98,18 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     // tf2_buffer_->setCreateTimerInterface(timer_interface);
     // tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
     cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
+    // initialize marker
+    // linear velocity of target car
+    chassis_linear_vel_.type = visualization_msgs::msg::Marker::ARROW;
+    chassis_linear_vel_.ns = "linear_v";
+    chassis_linear_vel_.scale.x = 0.03;
+    chassis_linear_vel_.scale.y = 0.05;
+    chassis_linear_vel_.color.a = 1.0;
+    chassis_linear_vel_.color.r = 1.0;
+    chassis_linear_vel_.color.g = 1.0;
+    // init marker_pub_
+    marker_pub_ =
+        this->get_node()->create_publisher<visualization_msgs::msg::MarkerArray>("/chassis/marker", 10);
     // create publisher
     state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
         DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
@@ -146,13 +154,6 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
                 RCLCPP_WARN_ONCE(logger_, "Received TwistStamped without frame_id, default set to imu");
                 msg->header.frame_id = "imu";
             }
-            // // transform received twist to chassis frame
-            // if (tf2_buffer_->canTransform("chassis", msg->header.frame_id, msg->header.stamp)) {
-            //     geometry_msgs::msg::TwistStamped tw_s;
-            //     tw_s.header = msg->header;
-            //     tw_s.twist = msg->twist;
-            //     *msg = tf2_buffer_->transform(tw_s, msg->header.frame_id);
-            // }
             received_gimbal_cmd_ptr_.set(std::move(msg));
         }
     );
@@ -249,6 +250,20 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     velocity_solver_.solve(*last_command_msg, last_yaw_diff_msg->data);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
+    // // publish visualization marker
+    // chassis_linear_vel_.header.stamp = this->get_node()->now();
+    // chassis_linear_vel_.header.frame_id = "chassis";
+    // chassis_linear_vel_.action = visualization_msgs::msg::Marker::ADD;
+    // geometry_msgs::msg::Point start_point, end_point;
+    // start_point.x = start_point.y = start_point.z = end_point.z = 0;
+    // chassis_linear_vel_.points.push_back(start_point);
+    // end_point.x = (wheel_velocities_[0] - last_command_msg->twist.angular.z) * 20;
+    // end_point.y = (wheel_velocities_[2] - last_command_msg->twist.angular.z) * 20;
+    // chassis_linear_vel_.points.push_back(end_point);
+    // marker_array_.markers.push_back(chassis_linear_vel_);
+    // marker_pub_->publish(marker_array_);
+    // marker_array_.markers.clear();
+    // set motor speed
     for (int i = 0; i < motor_number_; i++) {
         auto motor = cmd_map_.find(params_.motor_names[i]);
         motor->second.value_ = wheel_velocities_[i];

@@ -21,6 +21,7 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>generate_parameter_library</depend>
 
   <test_depend>ament_lint_auto</test_depend>

@@ -12,12 +12,10 @@
 #include "GimbalController.hpp"
 #include <cmath>
 #include <cstddef>
-#include <geometry_msgs/msg/detail/twist_stamped__struct.hpp>
 #include <iterator>
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
-#include <std_msgs/msg/detail/float64__struct.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -309,10 +307,8 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     auto pitch_motor = cmd_map_.find("pitch");
     auto yaw_motor = cmd_map_.find("yaw");
     yaw_motor->second.value_ = last_command_msg->yaw;
-    // pitch_motor->second.value_ = last_command_msg->pitch;
     yaw_motor->second.set_motor_angle(last_command_msg->yaw, imu_msg->total_yaw, chassis_msg->twist.angular.z);
     pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
-    // pitch_motor->second.value_ = pitch_motor->second.set_motor_angle(last_command_msg->pitch); // pitch
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
@@ -320,12 +316,12 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.child_frame_id = "chassis";
     ts.transform.translation.x = 0;
     ts.transform.translation.y = 0;
-    ts.transform.translation.z = -0.30;
+    ts.transform.translation.z = -0.02;
     tf2::Quaternion q;
-    double diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, (8192.0 * 1.5)) / (8192 * 1.5) * 2 * M_PI) 
-                                            -fmod((imu_msg->total_yaw + imu_msg->init_yaw), 360.0) / 360.0 * 2 * M_PI;
+    double diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
+                                            - fmod((imu_msg->total_yaw + imu_msg->init_yaw), 360.0) / 360.0 * 2 * M_PI;
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
-    RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
+    // RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();
     ts.transform.rotation.x = q.x();
     ts.transform.rotation.y = q.y();
