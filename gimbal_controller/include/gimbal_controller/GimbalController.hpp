@@ -30,6 +30,7 @@
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/static_transform_broadcaster.h"
+#include "angles/angles.h"
 
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"

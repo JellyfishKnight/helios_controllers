@@ -10,6 +10,7 @@
  *
  */
 #include "GimbalController.hpp"
+#include <angles/angles.h>
 #include <cmath>
 #include <cstddef>
 #include <iterator>
@@ -159,10 +160,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
                 // limit the max angle of up and down
-                if (msg->pitch > 4250) {
-                    msg->pitch = 4250;
-                } else if (msg->pitch < 1200) {
-                    msg->pitch = 1200;
+                if (msg->pitch > 4057) {
+                    msg->pitch = 4057;
+                } else if (msg->pitch < 1302) {
+                    msg->pitch = 1302;
                 }
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
@@ -303,11 +304,15 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
-    // compute pid
     auto pitch_motor = cmd_map_.find("pitch");
     auto yaw_motor = cmd_map_.find("yaw");
     yaw_motor->second.value_ = last_command_msg->yaw;
-    yaw_motor->second.set_motor_angle(last_command_msg->yaw, imu_msg->total_yaw, chassis_msg->twist.angular.z);
+    // convert absolute yaw into total angle
+    double yaw_diff_from_i2c = angles::shortest_angular_distance(last_command_msg->yaw / 360.0 * 2 * M_PI, 
+                                        std::fmod(std::fmod(imu_msg->total_yaw + imu_msg->init_yaw, 360.0) / 360.0 * 2 * M_PI, 2 * M_PI));
+    yaw_diff_from_i2c = yaw_diff_from_i2c / 2 / M_PI * 8192.0 * 1.5;
+    // compute pid
+    yaw_motor->second.set_motor_angle(yaw_motor->second.total_angle_ + yaw_diff_from_i2c, imu_msg->total_yaw, chassis_msg->twist.angular.z);
     pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
