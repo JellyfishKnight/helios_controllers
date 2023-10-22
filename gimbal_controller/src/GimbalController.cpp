@@ -59,7 +59,7 @@ controller_interface::CallbackReturn GimbalController::on_init() {
 controller_interface::InterfaceConfiguration GimbalController::command_interface_configuration() const {
     std::vector<std::string> conf_names;
     for (const auto& joint_name : params_.motor_names) {
-        for (auto & command_name : params_.motor_command_interfaces) {
+        for (const auto & command_name : params_.motor_command_interfaces) {
             conf_names.push_back(joint_name + "/" + command_name);
         }
     }
@@ -160,11 +160,13 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
                 // limit the max angle of up and down
-                if (msg->pitch > 4057) {
-                    msg->pitch = 4057;
-                } else if (msg->pitch < 1302) {
-                    msg->pitch = 1302;
+                // 4057 2250 1302
+                if (msg->pitch > 27) {
+                    msg->pitch = 27;
+                } else if (msg->pitch < -27) {
+                    msg->pitch = -27;
                 }
+                msg->pitch = (4057 - 1302) / 54.0 * msg->pitch + 2250;
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
@@ -230,10 +232,15 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
     // // set yaw pitch to mid angle
-    std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> imu_msg;
+    std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> imu_msg{};
+    static int init_cnt = 0;
     if (!is_inited_) {
+        init_cnt++;
         //check if imu message if nullptr
         received_imu_ptr_.get(imu_msg);
+        while (imu_msg == nullptr) {
+            received_imu_ptr_.get(imu_msg);
+        }
         math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
         for (auto & motor_packet : cmd_map_) {
             motor_packet.second.value_ = motor_packet.second.angle_;
@@ -255,11 +262,17 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
                 }
             }
         }
-        RCLCPP_WARN(logger_, "finished init");
-        is_inited_ = true;
+        if (init_cnt > 100) {
+            is_inited_ = true;
+            RCLCPP_INFO(logger_, "finished init");
+        }
         return controller_interface::return_type::OK;
     }
     received_imu_ptr_.get(imu_msg); // get imu message
+    if (imu_msg == nullptr) {
+        RCLCPP_ERROR(logger_, "imu message received was a nullptr");
+        return controller_interface::return_type::ERROR;
+    }
     std::shared_ptr<geometry_msgs::msg::TwistStamped> chassis_msg;
     received_chassis_cmd_ptr_.get(chassis_msg); // get chassis message
     if (chassis_msg == nullptr) {
@@ -306,14 +319,22 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     }
     auto pitch_motor = cmd_map_.find("pitch");
     auto yaw_motor = cmd_map_.find("yaw");
-    yaw_motor->second.value_ = last_command_msg->yaw;
-    // convert absolute yaw into total angle
-    double yaw_diff_from_i2c = angles::shortest_angular_distance(last_command_msg->yaw / 360.0 * 2 * M_PI, 
-                                        std::fmod(std::fmod(imu_msg->total_yaw + imu_msg->init_yaw, 360.0) / 360.0 * 2 * M_PI, 2 * M_PI));
-    yaw_diff_from_i2c = yaw_diff_from_i2c / 2 / M_PI * 8192.0 * 1.5;
-    // compute pid
-    yaw_motor->second.set_motor_angle(yaw_motor->second.total_angle_ + yaw_diff_from_i2c, imu_msg->total_yaw, chassis_msg->twist.angular.z);
-    pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
+    // convert absolute yaw and pitch into total angle
+    double yaw_diff_from_i2c = angles::shortest_angular_distance(
+        std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI,
+        std::fmod(imu_msg->total_yaw + imu_msg->init_yaw, 360.0) / 360.0 * 2 * M_PI
+    );
+    /// all we want is a value won't change when we rotate the gimbal
+    /// so we can't just send yaw diff from i2c, but we should add a opposite value of imu yaw
+    yaw_diff_from_i2c = (yaw_diff_from_i2c / 2 / M_PI + imu_msg->total_yaw / 360.0) * 8192.0 * 1.5;
+    // compute total value
+    // yaw_motor->second.set_motor_angle(last_command_msg->yaw, chassis_msg->twist.angular.z);
+    // pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
+    // imu_msg->total_yaw + imu_msg->init_yaw
+    // yaw_motor->second.set_motor_angle(yaw_diff_from_i2c + yaw_motor->second.total_angle_, chassis_msg->twist.angular.z);
+    // pitch_motor->second.set_motor_angle(last_command_msg->pitch);
+    yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c + imu_msg->total_yaw / 360.0 * 8192.0 * 1.5 + chassis_msg->twist.angular.z * 8;
+    RCLCPP_WARN(logger_, "value: %f", yaw_diff_from_i2c);
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
