@@ -208,7 +208,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     received_yaw_diff_ptr_.get(last_yaw_diff_msg);
     received_gimbal_cmd_ptr_.get(last_command_msg);
     if (last_command_msg == nullptr || last_yaw_diff_msg == nullptr) {
-        RCLCPP_ERROR(logger_, "command message or yaw diff received was a nullptr");
+        RCLCPP_ERROR_ONCE(logger_, "command message or yaw diff received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
     const auto age_of_last_command = time - last_command_msg->header.stamp;

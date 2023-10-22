@@ -245,33 +245,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     static int init_cnt = 0;
     if (!is_inited_) {
         init_cnt++;
-        //check if imu message if nullptr
-        received_imu_ptr_.get(imu_msg);
-        while (imu_msg == nullptr) {
-            received_imu_ptr_.get(imu_msg);
-        }
-        math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-        for (auto & motor_packet : cmd_map_) {
-            motor_packet.second.value_ = motor_packet.second.angle_;
-            // motor_packet.second.set_motor_angle(motor_packet.second.mid_angle_, imu_msg->total_yaw);
-        }
-        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-            if (motor_cmd != cmd_map_.end()) {
-                if (command_interfaces_[i].get_interface_name() == "can_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-                    command_interfaces_[i].set_value(3);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                    command_interfaces_[i].set_value(motor_cmd->second.value_);
-                }
-            }
-        }
-        if (init_cnt > 100) {
+        if (init_cnt > 2000) {
             is_inited_ = true;
             RCLCPP_INFO(logger_, "finished init");
         }
@@ -333,17 +307,17 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         std::fmod(total_yaw_, 360.0) / 360.0 * 2 * M_PI,
         std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI
     );
+    RCLCPP_WARN(logger_, "value: %f", yaw_diff_from_i2c * 360);
     // yaw_diff_from_i2c = (yaw_diff_from_i2c / 2 / M_PI + std::fmod(total_yaw_, 360.0) / 360.0) * 360;
     yaw_diff_from_i2c = (-yaw_diff_from_i2c / 2 / M_PI) * 8192.0 * 1.5 ;
     // + yaw_motor->second.total_angle_;
     // compute total value
     // yaw_motor->second.set_motor_angle(last_command_msg->yaw, chassis_msg->twist.angular.z);
     // pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
-    // yaw_motor->second.set_motor_angle(yaw_diff_from_i2c + yaw_motor->second.total_angle_, chassis_msg->twist.angular.z);
+    // yaw_motor->second.set_motor_angle(yaw_diff_from_i2c + yaw_motorbuch->second.total_angle_, chassis_msg->twist.angular.z);
     pitch_motor->second.value_ = last_command_msg->pitch;
     yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c;
     //  + total_yaw_ / 360.0 * 8192.0 * 1.5 + chassis_msg->twist.angular.z * 8;
-    RCLCPP_WARN(logger_, "value: %f, total: %d", yaw_diff_from_i2c, yaw_motor->second.total_angle_);
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
