@@ -122,6 +122,15 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     );
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
+                double yaw_diff = msg->yaw - last_imu_msg_.yaw;
+                if (yaw_diff < -180) {
+                    imu_cnt_++;
+                }
+                else if (yaw_diff > 180) {
+                    imu_cnt_--;
+                }
+                total_yaw_ = msg->yaw + imu_cnt_ * 360;
+                last_imu_msg_ = *msg;
                 received_imu_ptr_.set(std::move(msg));
             }
         );
@@ -321,20 +330,20 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     auto yaw_motor = cmd_map_.find("yaw");
     // convert absolute yaw and pitch into total angle
     double yaw_diff_from_i2c = angles::shortest_angular_distance(
-        std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI,
-        std::fmod(imu_msg->total_yaw + imu_msg->init_yaw, 360.0) / 360.0 * 2 * M_PI
+        std::fmod(total_yaw_, 360.0) / 360.0 * 2 * M_PI,
+        std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI
     );
-    /// all we want is a value won't change when we rotate the gimbal
-    /// so we can't just send yaw diff from i2c, but we should add a opposite value of imu yaw
-    yaw_diff_from_i2c = (yaw_diff_from_i2c / 2 / M_PI + imu_msg->total_yaw / 360.0) * 8192.0 * 1.5;
+    // yaw_diff_from_i2c = (yaw_diff_from_i2c / 2 / M_PI + std::fmod(total_yaw_, 360.0) / 360.0) * 360;
+    yaw_diff_from_i2c = (-yaw_diff_from_i2c / 2 / M_PI) * 8192.0 * 1.5 ;
+    // + yaw_motor->second.total_angle_;
     // compute total value
     // yaw_motor->second.set_motor_angle(last_command_msg->yaw, chassis_msg->twist.angular.z);
     // pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
-    // imu_msg->total_yaw + imu_msg->init_yaw
     // yaw_motor->second.set_motor_angle(yaw_diff_from_i2c + yaw_motor->second.total_angle_, chassis_msg->twist.angular.z);
-    // pitch_motor->second.set_motor_angle(last_command_msg->pitch);
-    yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c + imu_msg->total_yaw / 360.0 * 8192.0 * 1.5 + chassis_msg->twist.angular.z * 8;
-    RCLCPP_WARN(logger_, "value: %f", yaw_diff_from_i2c);
+    pitch_motor->second.value_ = last_command_msg->pitch;
+    yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c;
+    //  + total_yaw_ / 360.0 * 8192.0 * 1.5 + chassis_msg->twist.angular.z * 8;
+    RCLCPP_WARN(logger_, "value: %f, total: %d", yaw_diff_from_i2c, yaw_motor->second.total_angle_);
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
@@ -342,10 +351,10 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.child_frame_id = "chassis";
     ts.transform.translation.x = 0;
     ts.transform.translation.y = 0;
-    ts.transform.translation.z = -0.02;
+    ts.transform.translation.z = -0.08;
     tf2::Quaternion q;
     double diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
-                                            - fmod((imu_msg->total_yaw + imu_msg->init_yaw), 360.0) / 360.0 * 2 * M_PI;
+                                            - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
     // RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();

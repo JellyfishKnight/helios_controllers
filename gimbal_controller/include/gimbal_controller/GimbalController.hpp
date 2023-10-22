@@ -35,6 +35,7 @@
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"
 
+#include <helios_rs_interfaces/msg/detail/imu_euler__struct.hpp>
 #include <map>
 #include <memory>
 #include <vector>
@@ -92,6 +93,10 @@ protected:
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr yaw_diff_pub_;
+
+    double total_yaw_{};
+    double imu_cnt_{};
+    helios_rs_interfaces::msg::ImuEuler last_imu_msg_{};
 
     realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::SendData>> received_gimbal_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_chassis_cmd_ptr_;
