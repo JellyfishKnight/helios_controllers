@@ -307,17 +307,10 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         std::fmod(total_yaw_, 360.0) / 360.0 * 2 * M_PI,
         std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI
     );
-    RCLCPP_WARN(logger_, "value: %f", yaw_diff_from_i2c * 360);
-    // yaw_diff_from_i2c = (yaw_diff_from_i2c / 2 / M_PI + std::fmod(total_yaw_, 360.0) / 360.0) * 360;
     yaw_diff_from_i2c = (-yaw_diff_from_i2c / 2 / M_PI) * 8192.0 * 1.5 ;
-    // + yaw_motor->second.total_angle_;
     // compute total value
-    // yaw_motor->second.set_motor_angle(last_command_msg->yaw, chassis_msg->twist.angular.z);
-    // pitch_motor->second.set_motor_angle(last_command_msg->pitch, 0, 0);
-    // yaw_motor->second.set_motor_angle(yaw_diff_from_i2c + yaw_motorbuch->second.total_angle_, chassis_msg->twist.angular.z);
     pitch_motor->second.value_ = last_command_msg->pitch;
     yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c;
-    //  + total_yaw_ / 360.0 * 8192.0 * 1.5 + chassis_msg->twist.angular.z * 8;
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
