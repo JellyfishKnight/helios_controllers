@@ -47,7 +47,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
         motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
         motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
-        motor_packet.motor_mode_ = static_cast<uint8_t>(params_.motor_commands[i * command_interface_number_ + 3]);
+        motor_packet.motor_mode_ = 0x01;
         motor_packet.value_ = params_.motor_commands[i * command_interface_number_ + 4];
         // RCLCPP_DEBUG the motor packet info
         RCLCPP_DEBUG(logger_, "can_id %d, motor_type: %d, motor_id: %d", motor_packet.can_id_, motor_packet.motor_type_, motor_packet.motor_id_);
@@ -91,12 +91,8 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
         motor_number_ = static_cast<int>(params_.motor_names.size());
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
+
     // init tf2 utilities
-    // tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_node()->get_clock());
-    // auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(this->get_node()->get_node_base_interface(), 
-    //                                                             this->get_node()->get_node_timers_interface());
-    // tf2_buffer_->setCreateTimerInterface(timer_interface);
-    // tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
     cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
     // initialize marker
     // linear velocity of target car
@@ -154,7 +150,24 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
                 RCLCPP_WARN_ONCE(logger_, "Received TwistStamped without frame_id, default set to imu");
                 msg->header.frame_id = "imu";
             }
+            float total_linear_vel = std::sqrt(
+                msg->twist.linear.x * msg->twist.linear.x + msg->twist.linear.y * msg->twist.linear.y
+            );
+            if (total_linear_vel > params_.max_linear_vel) {
+                RCLCPP_WARN_ONCE(logger_, "Received TwistStamped with linear velocity %f, which is over the limit %f",
+                    total_linear_vel, params_.max_linear_vel
+                );
+                msg->twist.linear.x = msg->twist.linear.x / total_linear_vel * params_.max_linear_vel;
+                msg->twist.linear.y = msg->twist.linear.y / total_linear_vel * params_.max_linear_vel;
+            }
+            if (std::abs(msg->twist.angular.z) > params_.max_angular_vel) {
+                RCLCPP_WARN_ONCE(logger_, "Received TwistStamped with angular velocity %f, which is over the limit %f",
+                    msg->twist.angular.z, params_.max_angular_vel
+                );
+                msg->twist.angular.z = msg->twist.angular.z / msg->twist.angular.z * params_.max_angular_vel;
+            }
             received_gimbal_cmd_ptr_.set(std::move(msg));
+
         }
     );
     // set publish rate
@@ -191,6 +204,32 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         if (!is_halted_) {
             halt();
             is_halted_ = true;
+        }
+        return controller_interface::return_type::OK;
+    }
+    static int init_cnt = 0;
+    // set yaw pitch to mid angle
+    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
+        auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+        if (motor_cmd != cmd_map_.end()) {
+            if (command_interfaces_[i].get_interface_name() == "can_id") {
+                command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                command_interfaces_[i].set_value(3);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                command_interfaces_[i].set_value(motor_cmd->second.value_);
+            }
+        }
+    }
+    if (!is_inited_) {
+        init_cnt++;
+        if (init_cnt > 2000) {
+            is_inited_ = true;
+            RCLCPP_INFO(logger_, "finished init");
         }
         return controller_interface::return_type::OK;
     }
@@ -250,19 +289,6 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     velocity_solver_.solve(*last_command_msg, last_yaw_diff_msg->data);
     // front_left_v_, front_right_v_, back_left_v_, back_right_v_
     velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
-    // // publish visualization marker
-    // chassis_linear_vel_.header.stamp = this->get_node()->now();
-    // chassis_linear_vel_.header.frame_id = "chassis";
-    // chassis_linear_vel_.action = visualization_msgs::msg::Marker::ADD;
-    // geometry_msgs::msg::Point start_point, end_point;
-    // start_point.x = start_point.y = start_point.z = end_point.z = 0;
-    // chassis_linear_vel_.points.push_back(start_point);
-    // end_point.x = (wheel_velocities_[0] - last_command_msg->twist.angular.z) * 20;
-    // end_point.y = (wheel_velocities_[2] - last_command_msg->twist.angular.z) * 20;
-    // chassis_linear_vel_.points.push_back(end_point);
-    // marker_array_.markers.push_back(chassis_linear_vel_);
-    // marker_pub_->publish(marker_array_);
-    // marker_array_.markers.clear();
     // set motor speed
     for (int i = 0; i < motor_number_; i++) {
         auto motor = cmd_map_.find(params_.motor_names[i]);

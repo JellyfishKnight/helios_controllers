@@ -29,6 +29,16 @@ omnidirectional_controller:
       1, 0x200, 4, 1, 0, #4
     ],
   }
+  max_linear_vel: {
+    type: double,
+    default_value: 300,
+    description: "Max linear velocity of the robot",
+  }
+  max_angular_vel: {
+    type: double,
+    default_value: 300,
+    description: "Max angular velocity of the robot",
+  }
   publish_rate: {
     type: double,
     default_value: 1000,

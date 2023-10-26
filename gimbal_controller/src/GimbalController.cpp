@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstddef>
 #include <iterator>
+#include <math_utilities/MotorPacket.hpp>
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
@@ -216,6 +217,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
+    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
@@ -245,9 +247,15 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     static int init_cnt = 0;
     if (!is_inited_) {
         init_cnt++;
+        init_time_total_angle_ = cmd_map_.find("yaw")->second.total_angle_;
+        // RCLCPP_INFO(logger_, "%d \t %d", last_init_time_total_angle_, init_time_total_angle_);
         if (init_cnt > 2000) {
             is_inited_ = true;
             RCLCPP_INFO(logger_, "finished init");
+            return controller_interface::return_type::OK;
+        }
+        if (init_cnt == 100) {
+            last_init_time_total_angle_ = init_time_total_angle_;
         }
         return controller_interface::return_type::OK;
     }
@@ -320,8 +328,15 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.transform.translation.y = 0;
     ts.transform.translation.z = -0.08;
     tf2::Quaternion q;
-    double diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
-                                            - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
+    // ///TODO: bug: this place has a static error which is 2/3 round of yaw because of the yaw motor's gear ratio
+    double diff_yaw_from_imu_to_chassis;
+    if (last_init_time_total_angle_ < init_time_total_angle_) {
+        diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
+                                                - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
+    } else {
+        diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ + 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
+                                                - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
+    }
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
     // RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();

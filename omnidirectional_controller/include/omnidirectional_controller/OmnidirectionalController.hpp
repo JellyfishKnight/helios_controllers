@@ -84,6 +84,8 @@ protected:
     int state_interface_number_;
     int command_interface_number_;
 
+    bool is_inited_;
+
     /**
      * @brief get yaw diff in rad
      * 

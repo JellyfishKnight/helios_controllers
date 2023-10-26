@@ -89,6 +89,8 @@ protected:
     int motor_number_;
     int state_interface_number_;
     int command_interface_number_;
+    int32_t init_time_total_angle_;
+    int32_t last_init_time_total_angle_; 
 
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
