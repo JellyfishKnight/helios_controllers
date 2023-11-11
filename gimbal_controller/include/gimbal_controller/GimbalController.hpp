@@ -18,10 +18,10 @@
 #include "rclcpp_lifecycle/state.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 
-#include "helios_rs_interfaces/msg/motor_state.hpp"
-#include "helios_rs_interfaces/msg/motor_states.hpp"
-#include "helios_rs_interfaces/msg/send_data.hpp"
-#include "helios_rs_interfaces/msg/imu_euler.hpp"
+#include "helios_control_interfaces/msg/motor_state.hpp"
+#include "helios_control_interfaces/msg/motor_states.hpp"
+#include "autoaim_interfaces/msg/send_data.hpp"
+#include "sensor_interfaces/msg/imu_euler.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "std_msgs/msg/float64.hpp"
@@ -35,7 +35,6 @@
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"
 
-#include <helios_rs_interfaces/msg/detail/imu_euler__struct.hpp>
 #include <map>
 #include <memory>
 #include <vector>
@@ -92,21 +91,21 @@ protected:
     int32_t init_time_total_angle_;
     int32_t last_init_time_total_angle_; 
 
-    std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
-    rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
+    rclcpp::Publisher<helios_control_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr yaw_diff_pub_;
 
     double total_yaw_{};
     double imu_cnt_{};
-    helios_rs_interfaces::msg::ImuEuler last_imu_msg_{};
+    sensor_interfaces::msg::ImuEuler last_imu_msg_{};
 
-    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::SendData>> received_gimbal_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<autoaim_interfaces::msg::SendData>> received_gimbal_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_chassis_cmd_ptr_;
-    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::ImuEuler>> received_imu_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<sensor_interfaces::msg::ImuEuler>> received_imu_ptr_;
 
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr chassis_cmd_sub_;
-    rclcpp::Subscription<helios_rs_interfaces::msg::ImuEuler>::SharedPtr imu_euler_sub_;
-    rclcpp::Subscription<helios_rs_interfaces::msg::SendData>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<sensor_interfaces::msg::ImuEuler>::SharedPtr imu_euler_sub_;
+    rclcpp::Subscription<autoaim_interfaces::msg::SendData>::SharedPtr cmd_sub_;
     // Parameters from ROS for gimbal_controller
     std::shared_ptr<gimbal_controller::ParamListener> param_listener_;
     gimbal_controller::Params params_;
@@ -131,7 +130,7 @@ protected:
      * @brief Convert the current state of the gimbal from state_interfaces to a ROS message
      * @param state_msg The message to be filled
      */
-    bool export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg);
+    bool export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg);
 
     bool is_halted_ = false;
     bool subscriber_is_active_ = false;

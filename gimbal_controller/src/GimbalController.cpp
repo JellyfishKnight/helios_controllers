@@ -92,26 +92,26 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
             return controller_interface::CallbackReturn::ERROR;
         }
         // create publisher
-        state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
+        state_pub_ = get_node()->create_publisher<helios_control_interfaces::msg::MotorStates>(
             DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
         );
         yaw_diff_pub_ = get_node()->create_publisher<std_msgs::msg::Float64>("yaw_diff_i2c", rclcpp::SystemDefaultsQoS());
-        realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
+        realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>>(
             state_pub_
         );
         // create tf2 transform broadcaster
         dynamic_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this->get_node());
         // create subscribers
-        const helios_rs_interfaces::msg::SendData empty_gimbal_msg;
-        const helios_rs_interfaces::msg::ImuEuler empty_imu_msg;
+        const autoaim_interfaces::msg::SendData empty_gimbal_msg;
+        const sensor_interfaces::msg::ImuEuler empty_imu_msg;
         const geometry_msgs::msg::TwistStamped empty_chassis_msg;
-        received_gimbal_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::SendData>(empty_gimbal_msg));
-        received_imu_ptr_.set(std::make_shared<helios_rs_interfaces::msg::ImuEuler>(empty_imu_msg));
+        received_gimbal_cmd_ptr_.set(std::make_shared<autoaim_interfaces::msg::SendData>(empty_gimbal_msg));
+        received_imu_ptr_.set(std::make_shared<sensor_interfaces::msg::ImuEuler>(empty_imu_msg));
         received_chassis_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_chassis_msg));
         // initialize imu subscriber
-        imu_euler_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::ImuEuler>(
+        imu_euler_sub_ = get_node()->create_subscription<sensor_interfaces::msg::ImuEuler>(
             "imu_euler_out", rclcpp::SystemDefaultsQoS(), 
-            [this](const std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> msg)->void {
+            [this](const std::shared_ptr<sensor_interfaces::msg::ImuEuler> msg)->void {
                 if (!subscriber_is_active_) {
                     RCLCPP_WARN_ONCE(logger_, "Can't accept new imu_euler. subscriber is inactive");
                     return ;
@@ -155,9 +155,9 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         );
         
         // initialize command subscriber
-        cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::SendData>(
+        cmd_sub_ = get_node()->create_subscription<autoaim_interfaces::msg::SendData>(
             DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
-            [this](const std::shared_ptr<helios_rs_interfaces::msg::SendData> msg)->void {
+            [this](const std::shared_ptr<autoaim_interfaces::msg::SendData> msg)->void {
                 if (!subscriber_is_active_) {
                     RCLCPP_WARN_ONCE(logger_, "Can't accept new commands. subscriber is inactive");
                     return ;
@@ -243,7 +243,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
     // // set yaw pitch to mid angle
-    std::shared_ptr<helios_rs_interfaces::msg::ImuEuler> imu_msg{};
+    std::shared_ptr<sensor_interfaces::msg::ImuEuler> imu_msg{};
     static int init_cnt = 0;
     if (!is_inited_) {
         init_cnt++;
@@ -271,7 +271,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         return controller_interface::return_type::ERROR;
     }
     //check if command message if nullptr
-    std::shared_ptr<helios_rs_interfaces::msg::SendData> last_command_msg;
+    std::shared_ptr<autoaim_interfaces::msg::SendData> last_command_msg;
     received_gimbal_cmd_ptr_.get(last_command_msg);
     if (last_command_msg == nullptr) {
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
@@ -368,8 +368,8 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     return controller_interface::return_type::OK;
 }
 
-bool GimbalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
-    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
+bool GimbalController::export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg) {
+    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_control_interfaces::msg::MotorState>::quiet_NaN());
     state_msg.header.frame_id = "gimbal";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {

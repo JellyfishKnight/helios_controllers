@@ -107,10 +107,10 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     marker_pub_ =
         this->get_node()->create_publisher<visualization_msgs::msg::MarkerArray>("/chassis/marker", 10);
     // create publisher
-    state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
+    state_pub_ = get_node()->create_publisher<helios_control_interfaces::msg::MotorStates>(
         DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
     );
-    realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
+    realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>>(
         state_pub_
     );
     geometry_msgs::msg::TwistStamped empty_gimbal_msg;
@@ -316,8 +316,8 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     return controller_interface::return_type::OK;
 }
 
-bool OmnidirectionalController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
-    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
+bool OmnidirectionalController::export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg) {
+    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_control_interfaces::msg::MotorState>::quiet_NaN());
     state_msg.header.frame_id = "chassis";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {

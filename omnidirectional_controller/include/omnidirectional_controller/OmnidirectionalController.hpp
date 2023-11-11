@@ -20,8 +20,8 @@
 #include "lifecycle_msgs/msg/state.hpp"
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
-#include "helios_rs_interfaces/msg/motor_state.hpp"
-#include "helios_rs_interfaces/msg/motor_states.hpp"
+#include "helios_control_interfaces/msg/motor_state.hpp"
+#include "helios_control_interfaces/msg/motor_states.hpp"
 #include "std_msgs/msg/float64.hpp"
 
 #include <memory>
@@ -92,8 +92,8 @@ protected:
      */
     double read_yaw_encoder();
 
-    std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
-    rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>> realtime_gimbal_state_pub_;
+    rclcpp::Publisher<helios_control_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_gimbal_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<std_msgs::msg::Float64>> received_yaw_diff_ptr_;
@@ -133,7 +133,7 @@ protected:
      * @brief Convert the current state of the chassis from state_interfaces to a ROS message
      * @param state_msg The message to be filled
      */
-    bool export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg);
+    bool export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg);
 
     bool is_halted_ = false;
     bool subscriber_is_active_ = false;
