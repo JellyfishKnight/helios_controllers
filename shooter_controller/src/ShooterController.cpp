@@ -43,6 +43,10 @@ controller_interface::CallbackReturn ShooterController::on_init() {
         RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
         return controller_interface::CallbackReturn::ERROR;
     }
+    if (params_.dial.dial_velocity_level.size() != 10) {
+        RCLCPP_ERROR(logger_, "The number of velocity level is not 10");
+        return controller_interface::CallbackReturn::ERROR;
+    }
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -80,20 +84,20 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
         return controller_interface::CallbackReturn::ERROR;
     }
     // create publisher
-    state_pub_ = get_node()->create_publisher<helios_rs_interfaces::msg::MotorStates>(
+    state_pub_ = get_node()->create_publisher<helios_control_interfaces::msg::MotorStates>(
         DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
     );
-    realtime_shooter_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>>(
+    realtime_shooter_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>>(
         state_pub_
     );
     // initialize subscribers
-    const helios_rs_interfaces::msg::ShooterCmd empty_gimbal_msg;
-    const helios_rs_interfaces::msg::PowerHeatData empty_heat_msg;
-    received_shooter_cmd_ptr_.set(std::make_shared<helios_rs_interfaces::msg::ShooterCmd>(empty_gimbal_msg));
-    received_heat_ptr_.set(std::make_shared<helios_rs_interfaces::msg::PowerHeatData>(empty_heat_msg));
-    heat_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::PowerHeatData>(
+    const helios_control_interfaces::msg::ShooterCmd empty_gimbal_msg;
+    const sensor_interfaces::msg::PowerHeatData empty_heat_msg;
+    received_shooter_cmd_ptr_.set(std::make_shared<helios_control_interfaces::msg::ShooterCmd>(empty_gimbal_msg));
+    received_heat_ptr_.set(std::make_shared<sensor_interfaces::msg::PowerHeatData>(empty_heat_msg));
+    heat_sub_ = get_node()->create_subscription<sensor_interfaces::msg::PowerHeatData>(
         DEFAULT_HEAT_TOPIC, rclcpp::SensorDataQoS(), 
-        [this](helios_rs_interfaces::msg::PowerHeatData::SharedPtr msg) {
+        [this](sensor_interfaces::msg::PowerHeatData::SharedPtr msg) {
             if (!subscriber_is_active_) {
                 RCLCPP_WARN(logger_, "Can't accept new states. subscriber is inactive");
                 return ;
@@ -106,9 +110,9 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
             received_heat_ptr_.set(std::move(msg));
         }
     );
-    cmd_sub_ = get_node()->create_subscription<helios_rs_interfaces::msg::ShooterCmd>(
+    cmd_sub_ = get_node()->create_subscription<helios_control_interfaces::msg::ShooterCmd>(
         DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
-        [this](helios_rs_interfaces::msg::ShooterCmd::SharedPtr msg)->void {
+        [this](helios_control_interfaces::msg::ShooterCmd::SharedPtr msg)->void {
             if (!subscriber_is_active_) {
                 RCLCPP_WARN(logger_, "Can't accept new commands. subscriber is inactive");
                 return ;
@@ -165,24 +169,65 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
         motor_number_ = static_cast<int>(params_.motor_names.size());
-        for (int i = 0; i < motor_number_; i++) {
-            cmd_map_.find(params_.motor_names[i])->second.set_pid_current(
-                params_.motor_current_pid[i * motor_number_], 
-                params_.motor_current_pid[i * motor_number_ + 1], 
-                params_.motor_current_pid[i * motor_number_ + 2],
-                params_.motor_current_pid[i * motor_number_ + 3]);
-            cmd_map_.find(params_.motor_names[i])->second.set_pid_vel(
-                params_.motor_vel_pid[i * motor_number_], 
-                params_.motor_vel_pid[i * motor_number_ + 1], 
-                params_.motor_vel_pid[i * motor_number_ + 2],
-                params_.motor_vel_pid[i * motor_number_ + 3]);
-            cmd_map_.find(params_.motor_names[i])->second.set_pid_pos(
-                params_.motor_pos_pid[i * motor_number_], 
-                params_.motor_pos_pid[i * motor_number_ + 1], 
-                params_.motor_pos_pid[i * motor_number_ + 2],
-                params_.motor_pos_pid[i * motor_number_ + 3]);
-        }
+        state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+        command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
         RCLCPP_DEBUG(logger_, "Parameters were updated");
+    }
+    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
+    // block detection and resolve
+    auto dial_1 = cmd_map_.find("dial_1");
+    auto dial_2 = cmd_map_.find("dial_2");
+    if (dial_1->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
+        dial_2->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
+        RCLCPP_WARN(logger_, "Dial is blocked");
+        dial_1->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+        dial_2->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
+            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+            if (motor_cmd != cmd_map_.end()) {
+                if (command_interfaces_[i].get_interface_name() == "can_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                    command_interfaces_[i].set_value(motor_cmd->second.value_);
+                }
+            }
+        }
+        return controller_interface::return_type::OK;
+    }
+    // set yaw pitch to mid angle
+    static int init_cnt = 0;
+    if (!is_inited_) {
+        init_cnt++;
+        // RCLCPP_INFO(logger_, "%d \t %d", last_init_time_total_angle_, init_time_total_angle_);
+        if (init_cnt > 2000) {
+            is_inited_ = true;
+            RCLCPP_INFO(logger_, "finished init");
+            return controller_interface::return_type::OK;
+        }
+        // init angle
+        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
+            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+            if (motor_cmd != cmd_map_.end()) {
+                if (command_interfaces_[i].get_interface_name() == "can_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                    command_interfaces_[i].set_value(0x02);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                    command_interfaces_[i].set_value(motor_cmd->second.value_);
+                }
+            }
+        }
+        return controller_interface::return_type::OK;
     }
     // check if command message if nullptr
     received_shooter_cmd_ptr_.get(last_command_msg);
@@ -212,10 +257,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             realtime_shooter_state_pub_->unlockAndPublish();
         }
     }
-    // get motor measured
-    // for (int i = 0; i < motor_number_; i++) {
-    //     cmd_map_.find(params_.motor_names[i])->second.get_moto_measure(state_interfaces_);
-    // }
     // caculate shooter pid
     double velocity_rpm = 0;
     if (last_command_msg->shooter_mode == SHOOTER_STOP) {
@@ -225,29 +266,23 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
         velocity_rpm = params_.shooter.high_velocity;
     }
-    for (int i = 0; i < motor_number_ - params_.dial.dial_motor_number; i++) {
-        cmd_map_.find(params_.motor_names[i])->second.value_ = 
-            cmd_map_.find(params_.motor_names[i])->second.set_motor_speed(velocity_rpm);
-    }
     // caculate dial pid
     // check if heat has run out
     if (last_command_msg->dial_mode == DIAL_STOP ||
         last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit) {
         velocity_rpm = 0;
-        for (int i = motor_number_ - params_.dial.dial_motor_number; i < motor_number_; i++) {
-            motor->second.value_ = velocity_rpm;
-            motor->second.set_motor_speed(velocity_rpm);
-        }
+        dial_1->second.value_ = 0;
+        dial_2->second.value_ = 0;
     } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
         velocity_rpm = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
-        for (int i = motor_number_ - params_.dial.dial_motor_number; i < motor_number_; i++) {
-            motor->second.value_ = velocity_rpm;
-            motor->second.set_motor_speed(velocity_rpm);
-        }
+        dial_1->second.value_ = velocity_rpm;
+        dial_2->second.value_ = velocity_rpm;
+        dial_1->second.motor_mode_ = 0x01;
+        dial_2->second.motor_mode_ = 0x01;
     } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
-        ///TODO: DIAL_COUNT_CLOCKWISE MODE
-        for (int i = motor_number - params_.dial.dial_motor_number; i < motor_number_; i++) {
-            
+        if (last_command_msg->fire_flag == 1) {
+            dial_1->second.value_ = dial_1->second.total_angle_ + params_.dial.count_clock_wise_angle;
+            dial_2->second.value_ = dial_1->second.total_angle_ + params_.dial.count_clock_wise_angle;
         }
     }
     // convert into command_interfaces
@@ -268,8 +303,8 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     return controller_interface::return_type::OK;
 }
 
-bool ShooterController::export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg) {
-    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_rs_interfaces::msg::MotorState>::quiet_NaN());
+bool ShooterController::export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg) {
+    state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_control_interfaces::msg::MotorState>::quiet_NaN());
     state_msg.header.frame_id = "shooter";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {
@@ -287,11 +322,11 @@ bool ShooterController::export_state_interfaces(helios_rs_interfaces::msg::Motor
     return true;
 }
 
-bool reset() {
+bool ShooterController::reset() {
     return true;
 }
 
-void halt() {
+void ShooterController::halt() {
 
 }
 

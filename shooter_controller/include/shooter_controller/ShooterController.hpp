@@ -20,14 +20,13 @@
 #include "lifecycle_msgs/msg/state.hpp"
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
-#include "helios_rs_interfaces/msg/shooter_cmd.hpp"
-#include "helios_rs_interfaces/msg/motor_state.hpp"
-#include "helios_rs_interfaces/msg/motor_states.hpp"
-#include "helios_rs_interfaces/msg/power_heat_data.hpp"
+#include "helios_control_interfaces/msg/shooter_cmd.hpp"
+#include "helios_control_interfaces/msg/motor_state.hpp"
+#include "helios_control_interfaces/msg/motor_states.hpp"
+#include "sensor_interfaces/msg/power_heat_data.hpp"
 
 #include "visibility_control.h"
 
-#include <helios_rs_interfaces/msg/detail/power_heat_data__struct.hpp>
 #include <memory>
 #include <vector>
 #include <queue>
@@ -85,16 +84,19 @@ public:
     SHOOTER_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
+    bool is_inited_;
     int motor_number_;
+    int state_interface_number_;
+    int command_interface_number_;
     // cmd subscriber
-    std::shared_ptr<realtime_tools::RealtimePublisher<helios_rs_interfaces::msg::MotorStates>> realtime_shooter_state_pub_;
-    rclcpp::Publisher<helios_rs_interfaces::msg::MotorStates>::SharedPtr state_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>> realtime_shooter_state_pub_;
+    rclcpp::Publisher<helios_control_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
-    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd>> received_shooter_cmd_ptr_;
-    realtime_tools::RealtimeBox<std::shared_ptr<helios_rs_interfaces::msg::PowerHeatData>> received_heat_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<helios_control_interfaces::msg::ShooterCmd>> received_shooter_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<sensor_interfaces::msg::PowerHeatData>> received_heat_ptr_;
 
-    rclcpp::Subscription<helios_rs_interfaces::msg::ShooterCmd>::SharedPtr cmd_sub_;
-    rclcpp::Subscription<helios_rs_interfaces::msg::PowerHeatData>::SharedPtr heat_sub_;
+    rclcpp::Subscription<helios_control_interfaces::msg::ShooterCmd>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<sensor_interfaces::msg::PowerHeatData>::SharedPtr heat_sub_;
     // Parameters from ROS for OmnidirectionalController
     std::shared_ptr<ParamsListener> param_listener_;
     Params params_;
@@ -107,9 +109,9 @@ protected:
     std::chrono::milliseconds cmd_timeout_{50};
 
     // // previous 2 commands
-    std::queue<helios_rs_interfaces::msg::ShooterCmd> previous_commands_;
-    std::shared_ptr<helios_rs_interfaces::msg::ShooterCmd> last_command_msg;
-    std::shared_ptr<helios_rs_interfaces::msg::PowerHeatData> last_heat_msg;
+    std::queue<helios_control_interfaces::msg::ShooterCmd> previous_commands_;
+    std::shared_ptr<helios_control_interfaces::msg::ShooterCmd> last_command_msg;
+    std::shared_ptr<sensor_interfaces::msg::PowerHeatData> last_heat_msg;
 
     bool should_publish_ = false;
     // motor cmds
@@ -119,7 +121,10 @@ protected:
      * @brief Convert the current state of the chassis from state_interfaces to a ROS message
      * @param state_msg The message to be filled
      */
-    bool export_state_interfaces(helios_rs_interfaces::msg::MotorStates& state_msg);
+    bool export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg);
+
+    int block_cnt_{};
+    void solve_block_mode();
 
     bool is_halted_ = false;
     bool subscriber_is_active_ = false;

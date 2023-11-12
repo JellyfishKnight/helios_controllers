@@ -38,12 +38,12 @@ shooter_controller:
     type: double_array,
     default_value: 
     [ #can_id motor_types motor_id motor_value 
-      0.0, 0.0, 0.0, 0.0, #1
-      0.0, 0.0, 0.0, 0.0, #2
-      0.0, 0.0, 0.0, 0.0, #3
-      0.0, 0.0, 0.0, 0.0, #4
-      0.0, 0.0, 0.0, 0.0, #5
-      0.0, 0.0, 0.0, 0.0, #6
+      2, 0.0, 0.0, 0.0, #1
+      2, 0.0, 0.0, 0.0, #2
+      2, 0.0, 0.0, 0.0, #3
+      2, 0.0, 0.0, 0.0, #4
+      2, 0.0, 0.0, 0.0, #5
+      2, 0.0, 0.0, 0.0, #6
     ],
   }
   motor_mid_angle: {
@@ -61,12 +61,12 @@ shooter_controller:
   shooter: 
     low_velocity: {
       type: double,
-      default_value: 0.0,
+      default_value: 1000,
       description: "Low velocity of shooter",
     }
     high_velocity: {
       type: double,
-      default_value: 0.0,
+      default_value: 2000,
       description: "High velocity of shooter",
     }
   dial: 
@@ -90,6 +90,16 @@ shooter_controller:
       type: double,
       default_value: 0.0,
       description: "Auto fire rate of dial",
+    }
+    dial_current_limit: {
+      type: double,
+      default_value: 0.0,
+      description: "Current limit of dial",
+    }
+    dial_block_cnt_limit: {
+      type: double,
+      default_value: 1000,
+      description: "Block count limit of dial",
     }
 
 
