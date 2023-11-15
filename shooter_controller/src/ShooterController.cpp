@@ -283,6 +283,7 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         if (last_command_msg->fire_flag == 1) {
             dial_1->second.value_ = dial_1->second.total_angle_ + params_.dial.count_clock_wise_angle;
             dial_2->second.value_ = dial_1->second.total_angle_ + params_.dial.count_clock_wise_angle;
+            dial_1->second.motor_mode_ = dial_2->second.motor_mode_ = 0x02;
         }
     }
     // convert into command_interfaces

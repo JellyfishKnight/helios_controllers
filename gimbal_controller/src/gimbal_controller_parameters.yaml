@@ -46,7 +46,6 @@ gimbal_controller:
     type: double_array,
     default_value: 
     [ #1   #2 
-      # 0.0, 0.0,
-      180, 0.0
+      0.0, 0.0
     ]
   }

@@ -247,15 +247,10 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     static int init_cnt = 0;
     if (!is_inited_) {
         init_cnt++;
-        init_time_total_angle_ = cmd_map_.find("yaw")->second.total_angle_;
-        // RCLCPP_INFO(logger_, "%d \t %d", last_init_time_total_angle_, init_time_total_angle_);
         if (init_cnt > 2000) {
             is_inited_ = true;
             RCLCPP_INFO(logger_, "finished init");
             return controller_interface::return_type::OK;
-        }
-        if (init_cnt == 100) {
-            last_init_time_total_angle_ = init_time_total_angle_;
         }
         return controller_interface::return_type::OK;
     }
@@ -315,7 +310,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         std::fmod(total_yaw_, 360.0) / 360.0 * 2 * M_PI,
         std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI
     );
-    yaw_diff_from_i2c = (-yaw_diff_from_i2c / 2 / M_PI) * 8192.0 * 1.5 ;
+    yaw_diff_from_i2c = (-yaw_diff_from_i2c / 2 / M_PI) * 8192.0;
     // compute total value
     pitch_motor->second.value_ = last_command_msg->pitch;
     yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c;
@@ -326,17 +321,19 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.child_frame_id = "chassis";
     ts.transform.translation.x = 0;
     ts.transform.translation.y = 0;
-    ts.transform.translation.z = -0.08;
+    ts.transform.translation.z = 0;
     tf2::Quaternion q;
-    // ///TODO: bug: this place has a static error which is 2/3 round of yaw because of the yaw motor's gear ratio
+    // // ///TODO: bug: this place has a static error which is 2/3 round of yaw because of the yaw motor's gear ratio
     double diff_yaw_from_imu_to_chassis;
-    if (last_init_time_total_angle_ < init_time_total_angle_) {
-        diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
+    // if (last_init_time_total_angle_ < init_time_total_angle_) {
+    //     diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
+    //                                             - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
+    // } else {
+    //     diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ + 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
+    //                                             - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
+    // }
+    diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, 8192.0) / 8192) * 2 * M_PI
                                                 - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
-    } else {
-        diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ + 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
-                                                - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
-    }
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
     // RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();
