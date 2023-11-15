@@ -39,8 +39,7 @@ controller_interface::CallbackReturn GimbalController::on_init() {
     // init params
     for (int i = 0; i < motor_number_; i++) {
         math_utilities::MotorPacket motor_packet(
-            params_.motor_names[i],
-            params_.motor_mid_angle[i]
+            params_.motor_names[i]
         );
         motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
         motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
@@ -50,7 +49,7 @@ controller_interface::CallbackReturn GimbalController::on_init() {
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
-    if (params_.motor_names.size() != motor_number_) {
+    if (params_.motor_names.size() != static_cast<std::size_t>(motor_number_)) {
         RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
         return controller_interface::CallbackReturn::ERROR;
     }
@@ -170,13 +169,14 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
                 // limit the max angle of up and down
-                // 4057 2250 1302
+                // up   mid   down
+                // -110 -1505 -2444
                 if (msg->pitch > 27) {
                     msg->pitch = 27;
                 } else if (msg->pitch < -27) {
                     msg->pitch = -27;
                 }
-                msg->pitch = (4057 - 1302) / 54.0 * msg->pitch + 2250;
+                msg->pitch = (-(2444 - 110) / 54.0 * (-msg->pitch) - 1505);
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
@@ -217,23 +217,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
-    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-        auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-        if (motor_cmd != cmd_map_.end()) {
-            if (command_interfaces_[i].get_interface_name() == "can_id") {
-                command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                command_interfaces_[i].set_value(motor_cmd->second.value_);
-            }
-        }
-    }
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
@@ -242,18 +225,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
-    // // set yaw pitch to mid angle
     std::shared_ptr<sensor_interfaces::msg::ImuEuler> imu_msg{};
-    static int init_cnt = 0;
-    if (!is_inited_) {
-        init_cnt++;
-        if (init_cnt > 2000) {
-            is_inited_ = true;
-            RCLCPP_INFO(logger_, "finished init");
-            return controller_interface::return_type::OK;
-        }
-        return controller_interface::return_type::OK;
-    }
     received_imu_ptr_.get(imu_msg); // get imu message
     if (imu_msg == nullptr) {
         RCLCPP_ERROR(logger_, "imu message received was a nullptr");
@@ -325,15 +297,9 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     tf2::Quaternion q;
     // // ///TODO: bug: this place has a static error which is 2/3 round of yaw because of the yaw motor's gear ratio
     double diff_yaw_from_imu_to_chassis;
-    // if (last_init_time_total_angle_ < init_time_total_angle_) {
-    //     diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
-    //                                             - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
-    // } else {
-    //     diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ + 8192 * 1.5 * 0.66, (8192.0 * 1.5)) / (8192 * 1.5)) * 2 * M_PI
-    //                                             - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
-    // }
-    diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_, 8192.0) / 8192) * 2 * M_PI
+    diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 6380, 8192.0) / 8192) * 2 * M_PI
                                                 - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
+    RCLCPP_INFO(logger_, "diff: %f", diff_yaw_from_imu_to_chassis);
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
     // RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();

@@ -41,8 +41,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
     // init params
     for (int i = 0; i < motor_number_; i++) {
         math_utilities::MotorPacket motor_packet(
-            params_.motor_names[i],
-            params_.motor_commands[i * command_interface_number_ + 4]
+            params_.motor_names[i]
         );
         motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
         motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
@@ -204,32 +203,6 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         if (!is_halted_) {
             halt();
             is_halted_ = true;
-        }
-        return controller_interface::return_type::OK;
-    }
-    static int init_cnt = 0;
-    // set yaw pitch to mid angle
-    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-        auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-        if (motor_cmd != cmd_map_.end()) {
-            if (command_interfaces_[i].get_interface_name() == "can_id") {
-                command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-                command_interfaces_[i].set_value(3);
-            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                command_interfaces_[i].set_value(motor_cmd->second.value_);
-            }
-        }
-    }
-    if (!is_inited_) {
-        init_cnt++;
-        if (init_cnt > 2000) {
-            is_inited_ = true;
-            RCLCPP_INFO(logger_, "finished init");
         }
         return controller_interface::return_type::OK;
     }

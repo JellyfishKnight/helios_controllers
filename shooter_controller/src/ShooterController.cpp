@@ -8,8 +8,11 @@
  * ██   ██ ██      ██      ██ ██    ██      ██
  * ██   ██ ███████ ███████ ██  ██████  ███████
  *
+ .
+ 
  */
 #include "ShooterController.hpp"
+#include <cstddef>
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
@@ -29,8 +32,7 @@ controller_interface::CallbackReturn ShooterController::on_init() {
     // init params
     for (int i = 0; i < motor_number_; i++) {
         math_utilities::MotorPacket motor_packet(
-            params_.motor_names[i],
-            params_.motor_mid_angle[i]
+            params_.motor_names[i]
         );
         motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
         motor_packet.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
@@ -39,7 +41,7 @@ controller_interface::CallbackReturn ShooterController::on_init() {
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
-    if (params_.motor_names.size() != motor_number_) {
+    if (params_.motor_names.size() != static_cast<unsigned long>(motor_number_)) {
         RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
         return controller_interface::CallbackReturn::ERROR;
     }
@@ -200,35 +202,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         }
         return controller_interface::return_type::OK;
     }
-    // set yaw pitch to mid angle
-    static int init_cnt = 0;
-    if (!is_inited_) {
-        init_cnt++;
-        // RCLCPP_INFO(logger_, "%d \t %d", last_init_time_total_angle_, init_time_total_angle_);
-        if (init_cnt > 2000) {
-            is_inited_ = true;
-            RCLCPP_INFO(logger_, "finished init");
-            return controller_interface::return_type::OK;
-        }
-        // init angle
-        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-            if (motor_cmd != cmd_map_.end()) {
-                if (command_interfaces_[i].get_interface_name() == "can_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-                    command_interfaces_[i].set_value(0x02);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                    command_interfaces_[i].set_value(motor_cmd->second.value_);
-                }
-            }
-        }
-        return controller_interface::return_type::OK;
-    }
     // check if command message if nullptr
     received_shooter_cmd_ptr_.get(last_command_msg);
     received_heat_ptr_.get(last_heat_msg);
@@ -261,8 +234,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     double velocity_rpm = 0;
     if (last_command_msg->shooter_mode == SHOOTER_STOP) {
         velocity_rpm = 0;
-    } else if (last_command_msg->shooter_mode == SHOOTER_LOW_VELOCITY) {
-        velocity_rpm = params_.shooter.low_velocity;
     } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
         velocity_rpm = params_.shooter.high_velocity;
     }
@@ -275,8 +246,8 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         dial_2->second.value_ = 0;
     } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
         velocity_rpm = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
-        dial_1->second.value_ = velocity_rpm;
-        dial_2->second.value_ = velocity_rpm;
+        dial_1->second.value_ = last_command_msg->fire_flag == 1 ? velocity_rpm : 0;
+        dial_2->second.value_ = last_command_msg->fire_flag == 1 ? velocity_rpm : 0;
         dial_1->second.motor_mode_ = 0x01;
         dial_2->second.motor_mode_ = 0x01;
     } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
@@ -287,7 +258,7 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         }
     }
     // convert into command_interfaces
-    for (int i = 0; i < command_interfaces_.size(); i++) {
+    for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
             if (command_interfaces_[i].get_interface_name() == "can_id") {

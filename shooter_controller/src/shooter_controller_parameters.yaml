@@ -37,13 +37,13 @@ shooter_controller:
   motor_commands: {
     type: double_array,
     default_value: 
-    [ #can_id motor_types motor_id motor_value 
-      2, 0.0, 0.0, 0.0, #1
-      2, 0.0, 0.0, 0.0, #2
-      2, 0.0, 0.0, 0.0, #3
-      2, 0.0, 0.0, 0.0, #4
-      2, 0.0, 0.0, 0.0, #5
-      2, 0.0, 0.0, 0.0, #6
+    [ #can_id motor_types motor_id motor_mode motor_value 
+      2, 0x200, 0.0, 1, 0.0, #1
+      2, 0x200, 0.0, 1, 0.0, #2
+      2, 0x200, 0.0, 1, 0.0, #3
+      2, 0x200, 0.0, 1, 0.0, #4
+      2, 0x1ff, 0.0, 1, 0.0, #5
+      2, 0x1ff, 0.0, 1, 0.0, #6
     ],
   }
   motor_mid_angle: {
@@ -59,11 +59,6 @@ shooter_controller:
     description: "the heat limit of shooter",
   }
   shooter: 
-    low_velocity: {
-      type: double,
-      default_value: 1000,
-      description: "Low velocity of shooter",
-    }
     high_velocity: {
       type: double,
       default_value: 2000,
@@ -78,22 +73,17 @@ shooter_controller:
     dial_velocity_level: {
       type: double_array,
       # level 1 to 10
-      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      default_value: [100, 200, 250, 300, 350, 400, 450, 500, 550, 600],
       description: "Velocity level of dial",
     }
     count_clock_wise_angle: {
       type: double,
-      default_value: 0.0,
+      default_value: 1024.5,
       description: "Angle of dial when it rotates clock wise for one circle",
-    }
-    auto_fire_rate: {
-      type: double,
-      default_value: 0.0,
-      description: "Auto fire rate of dial",
     }
     dial_current_limit: {
       type: double,
-      default_value: 0.0,
+      default_value: 1000,
       description: "Current limit of dial",
     }
     dial_block_cnt_limit: {

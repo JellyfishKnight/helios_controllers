@@ -39,8 +39,7 @@
 #include "shooter_controller_parameters.hpp"
 
 #define SHOOTER_STOP 0
-#define SHOOTER_LOW_VELOCITY 1
-#define SHOOTER_HIGH_VELOCITY 2
+#define SHOOTER_HIGH_VELOCITY 1
 
 #define DIAL_STOP 0
 #define DIAL_CLOCKWISE 1
