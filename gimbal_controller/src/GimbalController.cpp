@@ -299,9 +299,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     double diff_yaw_from_imu_to_chassis;
     diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 6380, 8192.0) / 8192) * 2 * M_PI
                                                 - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
-    RCLCPP_INFO(logger_, "diff: %f", diff_yaw_from_imu_to_chassis);
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
-    // RCLCPP_ERROR(logger_, "value: %f", diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();
     ts.transform.rotation.x = q.x();
     ts.transform.rotation.y = q.y();

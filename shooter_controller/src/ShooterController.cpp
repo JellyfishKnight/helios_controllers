@@ -16,6 +16,7 @@
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
+#include <sensor_interfaces/msg/detail/power_heat_data__struct.hpp>
 
 namespace helios_control {
 
@@ -29,15 +30,19 @@ controller_interface::CallbackReturn ShooterController::on_init() {
         return controller_interface::CallbackReturn::ERROR;
     }
     motor_number_ = static_cast<int>(params_.motor_names.size());
+    state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
+    command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
     // init params
     for (int i = 0; i < motor_number_; i++) {
         math_utilities::MotorPacket motor_packet(
             params_.motor_names[i]
         );
-        motor_packet.can_id_ = params_.motor_commands[i * motor_number_];
-        motor_packet.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
-        motor_packet.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
-        motor_packet.value_ = params_.motor_mid_angle[i];
+        motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
+        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
+        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
+        motor_packet.motor_mode_ = static_cast<uint8_t>(params_.motor_commands[i * command_interface_number_ + 3]);
+        motor_packet.value_ = params_.motor_commands[i * command_interface_number_ + 4];
+
         // init map
         cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
     }
@@ -177,13 +182,13 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     }
     math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
     // block detection and resolve
-    auto dial_1 = cmd_map_.find("dial_1");
-    auto dial_2 = cmd_map_.find("dial_2");
-    if (dial_1->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
-        dial_2->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
+    auto dial_up = cmd_map_.find("dial_up");
+    auto dial_down = cmd_map_.find("dial_down");
+    if (dial_up->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
+        dial_down->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
         RCLCPP_WARN(logger_, "Dial is blocked");
-        dial_1->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-        dial_2->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+        dial_up->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+        dial_down->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
         for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
             auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
             if (motor_cmd != cmd_map_.end()) {
@@ -205,7 +210,11 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     // check if command message if nullptr
     received_shooter_cmd_ptr_.get(last_command_msg);
     received_heat_ptr_.get(last_heat_msg);
-    if (last_command_msg == nullptr || last_command_msg == nullptr) {
+    ///TODO: no referee system for now
+    last_heat_msg = std::make_shared<sensor_interfaces::msg::PowerHeatData>();
+    last_heat_msg->shooter_id1_17mm_residual_cooling_heat = 10000;
+    if (last_command_msg == nullptr) {
+    // if (last_command_msg == nullptr || last_heat_msg == nullptr) {
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
@@ -230,31 +239,36 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             realtime_shooter_state_pub_->unlockAndPublish();
         }
     }
-    // caculate shooter pid
+    // caculate shooter speed
     double velocity_rpm = 0;
     if (last_command_msg->shooter_mode == SHOOTER_STOP) {
         velocity_rpm = 0;
     } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
         velocity_rpm = params_.shooter.high_velocity;
     }
-    // caculate dial pid
+    auto shooter_left_up = cmd_map_.find("shooter_left_up");
+    auto shooter_left_down = cmd_map_.find("shooter_left_down");
+    auto shooter_right_up = cmd_map_.find("shooter_right_up");
+    auto shooter_right_down = cmd_map_.find("shooter_right_down");
+    shooter_left_up->second.value_ = velocity_rpm;
+    shooter_left_down->second.value_ = -velocity_rpm;
+    shooter_right_up->second.value_ = velocity_rpm;
+    shooter_right_down->second.value_ = -velocity_rpm;
+    // caculate dial speed or angle
     // check if heat has run out
     if (last_command_msg->dial_mode == DIAL_STOP ||
         last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit) {
-        velocity_rpm = 0;
-        dial_1->second.value_ = 0;
-        dial_2->second.value_ = 0;
+        dial_up->second.value_ = dial_down->second.value_ = 0;
     } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
-        velocity_rpm = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
-        dial_1->second.value_ = last_command_msg->fire_flag == 1 ? velocity_rpm : 0;
-        dial_2->second.value_ = last_command_msg->fire_flag == 1 ? velocity_rpm : 0;
-        dial_1->second.motor_mode_ = 0x01;
-        dial_2->second.motor_mode_ = 0x01;
+        double velocity = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
+        dial_up->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
+        dial_down->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
+        dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x01;
     } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
         if (last_command_msg->fire_flag == 1) {
-            dial_1->second.value_ = dial_1->second.total_angle_ + params_.dial.count_clock_wise_angle;
-            dial_2->second.value_ = dial_1->second.total_angle_ + params_.dial.count_clock_wise_angle;
-            dial_1->second.motor_mode_ = dial_2->second.motor_mode_ = 0x02;
+            dial_up->second.value_ = dial_up->second.total_angle_ + params_.dial.count_clock_wise_angle;
+            dial_down->second.value_ = dial_up->second.total_angle_ + params_.dial.count_clock_wise_angle;
+            dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x02;
         }
     }
     // convert into command_interfaces
@@ -267,7 +281,9 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
                 command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
                 command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-            } else if (command_interfaces_[i].get_interface_name() == "value") {
+            } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
+            } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
                 command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
         }
@@ -283,9 +299,6 @@ bool ShooterController::export_state_interfaces(helios_control_interfaces::msg::
         const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
         if (motor_packet != cmd_map_.end()) {
             motor_packet->second.set_state_msg(state_msg.motor_states[i]);
-            motor_packet->second.can_id_ = params_.motor_commands[i * motor_number_];
-            motor_packet->second.motor_type_ = params_.motor_commands[i * motor_number_ + 1];
-            motor_packet->second.motor_id_ = params_.motor_commands[i * motor_number_ + 2];
         } else {
             RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
             return false;
@@ -304,3 +317,9 @@ void ShooterController::halt() {
 
 
 } // namespace helios_control
+
+// register controller class 
+#include "class_loader/register_macro.hpp"
+
+CLASS_LOADER_REGISTER_CLASS(
+  helios_control::ShooterController, controller_interface::ControllerInterface)
