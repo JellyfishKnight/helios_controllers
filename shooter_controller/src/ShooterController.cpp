@@ -184,29 +184,29 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     // block detection and resolve
     auto dial_up = cmd_map_.find("dial_up");
     auto dial_down = cmd_map_.find("dial_down");
-    if (dial_up->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
-        dial_down->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
-        RCLCPP_WARN(logger_, "Dial is blocked");
-        dial_up->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-        dial_down->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-            if (motor_cmd != cmd_map_.end()) {
-                if (command_interfaces_[i].get_interface_name() == "can_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                    command_interfaces_[i].set_value(motor_cmd->second.value_);
-                }
-            }
-        }
-        return controller_interface::return_type::OK;
-    }
+    // if (dial_up->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
+    //     dial_down->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
+    //     RCLCPP_WARN(logger_, "Dial is blocked");
+    //     dial_up->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+    //     dial_down->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+    //     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
+    //         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+    //         if (motor_cmd != cmd_map_.end()) {
+    //             if (command_interfaces_[i].get_interface_name() == "can_id") {
+    //                 command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+    //             } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+    //                 command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+    //             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+    //                 command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+    //             } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+    //                 command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
+    //             } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+    //                 command_interfaces_[i].set_value(motor_cmd->second.value_);
+    //             }
+    //         }
+    //     }
+    //     return controller_interface::return_type::OK;
+    // }
     // check if command message if nullptr
     received_shooter_cmd_ptr_.get(last_command_msg);
     received_heat_ptr_.get(last_heat_msg);
@@ -250,14 +250,15 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     auto shooter_left_down = cmd_map_.find("shooter_left_down");
     auto shooter_right_up = cmd_map_.find("shooter_right_up");
     auto shooter_right_down = cmd_map_.find("shooter_right_down");
-    shooter_left_up->second.value_ = velocity_rpm;
-    shooter_left_down->second.value_ = -velocity_rpm;
+    shooter_left_up->second.value_ = -velocity_rpm;
+    shooter_left_down->second.value_ = velocity_rpm;
     shooter_right_up->second.value_ = velocity_rpm;
     shooter_right_down->second.value_ = -velocity_rpm;
     // caculate dial speed or angle
     // check if heat has run out
     if (last_command_msg->dial_mode == DIAL_STOP ||
-        last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit) {
+        last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit || 
+        velocity_rpm == 0) {
         dial_up->second.value_ = dial_down->second.value_ = 0;
     } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
         double velocity = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
@@ -266,8 +267,8 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x01;
     } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
         if (last_command_msg->fire_flag == 1) {
-            dial_up->second.value_ = dial_up->second.total_angle_ + params_.dial.count_clock_wise_angle;
-            dial_down->second.value_ = dial_up->second.total_angle_ + params_.dial.count_clock_wise_angle;
+            dial_up->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
+            dial_down->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
             dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x02;
         }
     }
@@ -284,6 +285,10 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
                 command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                // if (motor_cmd->first == "dial_down") {
+                //     RCLCPP_WARN(logger_, "value: %f", motor_cmd->second.value_); 
+                //     RCLCPP_WARN(logger_, "mode: %d", motor_cmd->second.motor_mode_); 
+                // }
                 command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
         }

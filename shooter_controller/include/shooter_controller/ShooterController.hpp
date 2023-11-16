@@ -122,9 +122,6 @@ protected:
      */
     bool export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg);
 
-    int block_cnt_{};
-    void solve_block_mode();
-
     bool is_halted_ = false;
     bool subscriber_is_active_ = false;
     bool reset();

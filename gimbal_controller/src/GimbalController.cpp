@@ -130,6 +130,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     imu_cnt_--;
                 }
                 total_yaw_ = msg->yaw + imu_cnt_ * 360;
+                RCLCPP_WARN(logger_, "yaw: %f, imu_cnt: %f", msg->yaw, imu_cnt_);
                 last_imu_msg_ = *msg;
                 received_imu_ptr_.set(std::move(msg));
             }
@@ -176,6 +177,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                 } else if (msg->pitch < -27) {
                     msg->pitch = -27;
                 }
+                // ///TODO: temperory fix for gimbal yaw
+                // if (std::abs(std::fmod(msg->yaw, 360.0) - 180.0) < 3) {
+                //     msg->yaw = 175;
+                // }
                 msg->pitch = (-(2444 - 110) / 54.0 * (-msg->pitch) - 1505);
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
@@ -295,7 +300,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.transform.translation.y = 0;
     ts.transform.translation.z = 0;
     tf2::Quaternion q;
-    // // ///TODO: bug: this place has a static error which is 2/3 round of yaw because of the yaw motor's gear ratio
     double diff_yaw_from_imu_to_chassis;
     diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 6380, 8192.0) / 8192) * 2 * M_PI
                                                 - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
