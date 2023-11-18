@@ -20,7 +20,7 @@
 
 #include "helios_control_interfaces/msg/motor_state.hpp"
 #include "helios_control_interfaces/msg/motor_states.hpp"
-#include "autoaim_interfaces/msg/send_data.hpp"
+#include "helios_control_interfaces/msg/gimbal_cmd.hpp"
 #include "sensor_interfaces/msg/imu_euler.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
@@ -35,6 +35,7 @@
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"
 
+#include <helios_control_interfaces/msg/detail/gimbal_cmd__struct.hpp>
 #include <map>
 #include <memory>
 #include <vector>
@@ -97,13 +98,13 @@ protected:
     double imu_cnt_{};
     sensor_interfaces::msg::ImuEuler last_imu_msg_{};
 
-    realtime_tools::RealtimeBox<std::shared_ptr<autoaim_interfaces::msg::SendData>> received_gimbal_cmd_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<helios_control_interfaces::msg::GimbalCmd>> received_gimbal_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_chassis_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<sensor_interfaces::msg::ImuEuler>> received_imu_ptr_;
 
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr chassis_cmd_sub_;
     rclcpp::Subscription<sensor_interfaces::msg::ImuEuler>::SharedPtr imu_euler_sub_;
-    rclcpp::Subscription<autoaim_interfaces::msg::SendData>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<helios_control_interfaces::msg::GimbalCmd>::SharedPtr cmd_sub_;
     // Parameters from ROS for gimbal_controller
     std::shared_ptr<gimbal_controller::ParamListener> param_listener_;
     gimbal_controller::Params params_;

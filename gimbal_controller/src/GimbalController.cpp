@@ -101,10 +101,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         // create tf2 transform broadcaster
         dynamic_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this->get_node());
         // create subscribers
-        const autoaim_interfaces::msg::SendData empty_gimbal_msg;
+        const helios_control_interfaces::msg::GimbalCmd empty_gimbal_msg;
         const sensor_interfaces::msg::ImuEuler empty_imu_msg;
         const geometry_msgs::msg::TwistStamped empty_chassis_msg;
-        received_gimbal_cmd_ptr_.set(std::make_shared<autoaim_interfaces::msg::SendData>(empty_gimbal_msg));
+        received_gimbal_cmd_ptr_.set(std::make_shared<helios_control_interfaces::msg::GimbalCmd>(empty_gimbal_msg));
         received_imu_ptr_.set(std::make_shared<sensor_interfaces::msg::ImuEuler>(empty_imu_msg));
         received_chassis_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_chassis_msg));
         // initialize imu subscriber
@@ -154,9 +154,9 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         );
         
         // initialize command subscriber
-        cmd_sub_ = get_node()->create_subscription<autoaim_interfaces::msg::SendData>(
+        cmd_sub_ = get_node()->create_subscription<helios_control_interfaces::msg::GimbalCmd>(
             DEFAULT_COMMAND_TOPIC, rclcpp::SystemDefaultsQoS(), 
-            [this](const std::shared_ptr<autoaim_interfaces::msg::SendData> msg)->void {
+            [this](const std::shared_ptr<helios_control_interfaces::msg::GimbalCmd> msg)->void {
                 if (!subscriber_is_active_) {
                     RCLCPP_WARN_ONCE(logger_, "Can't accept new commands. subscriber is inactive");
                     return ;
@@ -176,10 +176,6 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                 } else if (msg->pitch < -27) {
                     msg->pitch = -27;
                 }
-                // ///TODO: temperory fix for gimbal yaw
-                // if (std::abs(std::fmod(msg->yaw, 360.0) - 180.0) < 3) {
-                //     msg->yaw = 175;
-                // }
                 msg->pitch = (-(2444 - 110) / 54.0 * (-msg->pitch) - 1505);
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
@@ -256,7 +252,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         return controller_interface::return_type::ERROR;
     }
     //check if command message if nullptr
-    std::shared_ptr<autoaim_interfaces::msg::SendData> last_command_msg;
+    std::shared_ptr<helios_control_interfaces::msg::GimbalCmd> last_command_msg;
     received_gimbal_cmd_ptr_.get(last_command_msg);
     if (last_command_msg == nullptr) {
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
