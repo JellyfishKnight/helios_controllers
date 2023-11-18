@@ -39,7 +39,7 @@ gimbal_controller:
     default_value: 
     [ #can_id motor_types motor_id motor_mode motor_value 
       #6438
-      1, 0x140, 1, 2, 0, #1
+      1, 0x140, 1, 2, 6429, #1
       2, 0x1ff, 2, 2, -1505, #2
     ],
   }

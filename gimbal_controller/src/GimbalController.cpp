@@ -130,7 +130,6 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     imu_cnt_--;
                 }
                 total_yaw_ = msg->yaw + imu_cnt_ * 360;
-                RCLCPP_WARN(logger_, "yaw: %f, imu_cnt: %f", msg->yaw, imu_cnt_);
                 last_imu_msg_ = *msg;
                 received_imu_ptr_.set(std::move(msg));
             }
@@ -222,6 +221,20 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
+    // get motor states
+    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
+    auto pitch_motor = cmd_map_.find("pitch");
+    auto yaw_motor = cmd_map_.find("yaw");
+    static int init_cnt = 0;
+    if (!is_inited_) {
+        init_cnt++;
+        if (init_cnt > 2000) {
+            RCLCPP_INFO_ONCE(logger_, "finished init");
+            is_inited_ = true;
+            return controller_interface::return_type::OK;
+        }
+        return controller_interface::return_type::OK;
+    }
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
@@ -249,8 +262,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
-    // get motor states
-    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
@@ -280,8 +291,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
-    auto pitch_motor = cmd_map_.find("pitch");
-    auto yaw_motor = cmd_map_.find("yaw");
     // convert absolute yaw and pitch into total angle
     double yaw_diff_from_i2c = angles::shortest_angular_distance(
         std::fmod(total_yaw_, 360.0) / 360.0 * 2 * M_PI,
