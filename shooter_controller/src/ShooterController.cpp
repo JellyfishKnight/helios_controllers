@@ -184,29 +184,29 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     // block detection and resolve
     auto dial_up = cmd_map_.find("dial_up");
     auto dial_down = cmd_map_.find("dial_down");
-    // if (dial_up->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
-    //     dial_down->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
-    //     RCLCPP_WARN(logger_, "Dial is blocked");
-    //     dial_up->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-    //     dial_down->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-    //     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-    //         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-    //         if (motor_cmd != cmd_map_.end()) {
-    //             if (command_interfaces_[i].get_interface_name() == "can_id") {
-    //                 command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-    //             } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-    //                 command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-    //             } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-    //                 command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-    //             } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-    //                 command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
-    //             } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-    //                 command_interfaces_[i].set_value(motor_cmd->second.value_);
-    //             }
-    //         }
-    //     }
-    //     return controller_interface::return_type::OK;
-    // }
+    if (dial_up->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
+        dial_down->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
+        RCLCPP_WARN(logger_, "Dial is blocked, Solving it");
+        dial_up->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+        dial_down->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
+        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
+            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
+            if (motor_cmd != cmd_map_.end()) {
+                if (command_interfaces_[i].get_interface_name() == "can_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
+                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
+                    command_interfaces_[i].set_value(0x02);
+                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
+                    command_interfaces_[i].set_value(motor_cmd->second.value_);
+                }
+            }
+        }
+        return controller_interface::return_type::OK;
+    }
     // check if command message if nullptr
     received_shooter_cmd_ptr_.get(last_command_msg);
     received_heat_ptr_.get(last_heat_msg);
