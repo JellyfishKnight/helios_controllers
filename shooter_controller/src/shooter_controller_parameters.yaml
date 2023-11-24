@@ -66,7 +66,7 @@ shooter_controller:
     dial_velocity_level: {
       type: double_array,
       # level 1 to 10
-      default_value: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500],
+      default_value: [50, 200, 350, 500, 650, 800, 950, 1100, 1250, 1400],
       description: "Velocity level of dial",
     }
     count_clock_wise_angle: {
