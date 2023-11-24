@@ -285,10 +285,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
                 command_interfaces_[i].set_value(motor_cmd->second.motor_mode_);
             } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                // if (motor_cmd->first == "dial_down") {
-                //     RCLCPP_WARN(logger_, "value: %f", motor_cmd->second.value_); 
-                //     RCLCPP_WARN(logger_, "mode: %d", motor_cmd->second.motor_mode_); 
-                // }
                 command_interfaces_[i].set_value(motor_cmd->second.value_);
             }
         }
