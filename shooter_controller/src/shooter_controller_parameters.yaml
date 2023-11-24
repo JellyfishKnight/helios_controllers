@@ -71,17 +71,17 @@ shooter_controller:
     }
     count_clock_wise_angle: {
       type: double,
-      default_value: 1024.5,
+      default_value: 3072,
       description: "Angle of dial when it rotates clock wise for one circle",
     }
     dial_current_limit: {
       type: double,
-      default_value: 100000000,
+      default_value: 5000,
       description: "Current limit of dial",
     }
     dial_block_cnt_limit: {
       type: double,
-      default_value: 10000000,
+      default_value: 2000,
       description: "Block count limit of dial",
     }
 
