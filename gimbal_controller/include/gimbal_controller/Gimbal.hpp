@@ -15,6 +15,8 @@
 #include <angles/angles.h>
 
 #include "helios_control_interfaces/msg/gimbal_cmd.hpp"
+#include "sensor_interfaces/msg/imu_euler.hpp"
+
 #include "hardware_interface/loaned_state_interface.hpp"
 
 #include "math_utilities/MotorPacket.hpp"
@@ -44,13 +46,18 @@ public:
 
     ~Gimbal();
 
-    void set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd);
+    void set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd,
+                        const sensor_interfaces::msg::ImuEuler& imu_euler);
 
     void update_moto(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
                         const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces);
 
     void update_params(const gimbal_controller::Params& params);
 
+    double caculate_diff_angle_from_imu_to_chassis();
+
+    math_utilities::MotorPacket* yaw_moto_ptr_;
+    math_utilities::MotorPacket* pitch_moto_ptr_;
 private:
     void do_debug(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd);
 
@@ -65,9 +72,11 @@ private:
     double last_autoaim_msg_time_;
 
     gimbal_controller::Params params_;
-
-    math_utilities::MotorPacket* yaw_moto_ptr_;
-    math_utilities::MotorPacket* pitch_moto_ptr_;
+    
+    int imu_round_cnt_;
+    double imu_total_yaw_;
+    double last_imu_yaw_;
+    double imu_pitch_;
 
     rclcpp::Logger logger_ = rclcpp::get_logger("Gimbal");
 };

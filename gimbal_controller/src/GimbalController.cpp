@@ -168,21 +168,14 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     );
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
-                // limit the max angle of up and down
-                // up   mid   down
-                // -110 -1505 -2444
-                if (msg->pitch > 27) {
-                    msg->pitch = 27;
-                } else if (msg->pitch < -27) {
-                    msg->pitch = -27;
-                }
-                msg->pitch = (-(2444 - 110) / 54.0 * (-msg->pitch) - 1505);
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
         // set publish rate
         publish_rate_ = params_.publish_rate;
         publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
+        // create gimbal
+        gimbal_ = std::make_shared<Gimbal>(params_);
         return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -217,26 +210,13 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
         return controller_interface::return_type::OK;
     }
-    // get motor states
-    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-    auto pitch_motor = cmd_map_.find("pitch");
-    auto yaw_motor = cmd_map_.find("yaw");
-    static int init_cnt = 0;
-    if (!is_inited_) {
-        init_cnt++;
-        if (init_cnt > 2000) {
-            RCLCPP_INFO_ONCE(logger_, "finished init");
-            is_inited_ = true;
-            return controller_interface::return_type::OK;
-        }
-        return controller_interface::return_type::OK;
-    }
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
         motor_number_ = static_cast<int>(params_.motor_names.size());
         state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
         command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+        gimbal_->update_params(params_);
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
     std::shared_ptr<sensor_interfaces::msg::ImuEuler> imu_msg{};
@@ -275,7 +255,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         previous_publish_timestamp_ = time;
         should_publish_ = true;
     }
-
     // publish gimbal states
     if (should_publish_) {
         if (realtime_gimbal_state_pub_->trylock()) {
@@ -287,15 +266,12 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
-    // convert absolute yaw and pitch into total angle
-    double yaw_diff_from_i2c = angles::shortest_angular_distance(
-        std::fmod(total_yaw_, 360.0) / 360.0 * 2 * M_PI,
-        std::fmod(last_command_msg->yaw, 360.0) / 360.0 * 2 * M_PI
-    );
-    yaw_diff_from_i2c = (-yaw_diff_from_i2c / 2 / M_PI) * 8192.0;
-    // compute total value
-    pitch_motor->second.value_ = last_command_msg->pitch;
-    yaw_motor->second.value_ = yaw_motor->second.total_angle_ + yaw_diff_from_i2c;
+    // Update motor value
+    gimbal_->update_moto(cmd_map_, state_interfaces_);
+    // Set gimbal commands
+    gimbal_->set_gimbal_cmd(*last_command_msg, last_imu_msg_);
+    // get diff yaw from imu to chassis
+    double diff_yaw_from_imu_to_chassis = gimbal_->caculate_diff_angle_from_imu_to_chassis();
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();
@@ -305,9 +281,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     ts.transform.translation.y = 0;
     ts.transform.translation.z = 0;
     tf2::Quaternion q;
-    double diff_yaw_from_imu_to_chassis;
-    diff_yaw_from_imu_to_chassis = -(fmod(yaw_motor->second.total_angle_ - 6380, 8192.0) / 8192) * 2 * M_PI
-                                                - fmod((total_yaw_), 360.0) / 360.0 * 2 * M_PI;
     q.setEuler(0, 0, diff_yaw_from_imu_to_chassis);
     ts.transform.rotation.w = q.w();
     ts.transform.rotation.x = q.x();
@@ -317,7 +290,6 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     std_msgs::msg::Float64 yaw_diff_msg;
     yaw_diff_msg.data = diff_yaw_from_imu_to_chassis;
     yaw_diff_pub_->publish(yaw_diff_msg);
-    // set command values
     // convert into command_interfaces
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());

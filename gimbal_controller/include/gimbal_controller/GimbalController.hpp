@@ -34,6 +34,7 @@
 
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"
+#include "Gimbal.hpp"
 
 #include <helios_control_interfaces/msg/detail/gimbal_cmd__struct.hpp>
 #include <map>
@@ -85,7 +86,6 @@ public:
     GIMBAL_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
-    bool is_inited_;
     int motor_number_;
     int state_interface_number_;
     int command_interface_number_;
@@ -118,7 +118,10 @@ protected:
 
     // pid controllers
     std::map<std::string, math_utilities::MotorPacket> cmd_map_;
-    
+    // Gimbal
+    std::shared_ptr<Gimbal> gimbal_;
+
+
     std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_broadcaster_;
 
     bool should_publish_ = false;

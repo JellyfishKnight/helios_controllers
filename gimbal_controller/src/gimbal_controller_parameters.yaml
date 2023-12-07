@@ -48,3 +48,23 @@ gimbal_controller:
     default_value: 0.5,
     description: "the time interval between two commands",
   }
+  pitch_max_angle: {
+    type: double,
+    default_value: -110,
+    description: "the max angle of pitch",
+  }
+  pitch_min_angle: {
+    type: double,
+    default_value: -2444,
+    description: "the min angle of pitch",
+  }
+  yaw_vel_limit: {
+    type: double,
+    default_value: 50,
+    description: "the max velocity of yaw",
+  }
+  pitch_vel_limit: {
+    type: double,
+    default_value: 30,
+    description: "the max velocity of pitch",
+  }
