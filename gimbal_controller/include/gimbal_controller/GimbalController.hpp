@@ -116,15 +116,15 @@ protected:
     // Timeout to consider cmd commands old
     std::chrono::milliseconds cmd_timeout_{50};
 
-    // // previous 2 commands
-    // std::queue<helios_rs_interfaces::msg::GIMBALMsg> previous_commands_;
-
     // pid controllers
     std::map<std::string, math_utilities::MotorPacket> cmd_map_;
     
     std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_broadcaster_;
 
     bool should_publish_ = false;
+
+    double last_autoaim_time_;
+
     /**
      * @brief Convert the current state of the gimbal from state_interfaces to a ROS message
      * @param state_msg The message to be filled

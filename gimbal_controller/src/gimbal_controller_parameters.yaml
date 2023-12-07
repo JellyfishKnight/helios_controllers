@@ -43,3 +43,8 @@ gimbal_controller:
       2, 0x1ff, 2, 2, -1505, #2
     ],
   }
+  autoaim_expire_time: {
+    type: double,
+    default_value: 0.5,
+    description: "the time interval between two commands",
+  }
