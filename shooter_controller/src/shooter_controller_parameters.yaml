@@ -47,7 +47,7 @@ shooter_controller:
     ],
   }
   heat_limit: {
-    type: int,
+    type: double,
     default_value: 10,
     description: "the heat limit of shooter",
   }

@@ -19,6 +19,7 @@
 #include "math_utilities/MotorPacket.hpp"
 
 #include "helios_control_interfaces/msg/shooter_cmd.hpp"
+#include "sensor_interfaces/msg/power_heat_data.hpp"
 
 #include <map>
 #include <string.h>
@@ -28,22 +29,34 @@
 // https://github.com/PickNikRobotics/generate_parameter_library
 #include "shooter_controller_parameters.hpp"
 
-typedef enum {
-    SHOOTER_LOCKED = 0,
-    SHOOTER_RUNNING = 1,
-    DIAL_RUNNING = 2,
-    UNDEFINED = 3,
-}ShooterState;
+
 
 namespace helios_control {
 
+#define FIRE 1
+#define HOLD 0
+
+typedef enum {
+    STOP = 0,
+    LOW = 1,
+    HIGH = 2,
+}ShooterSpeed;
+
+typedef enum {
+    SHOOTER_LOCKED = 0,
+    SHOOTER_RUNNING = 1,
+    DIAL_LOCKED = 2,
+    DIAL_RUNNING = 3,
+    UNDEFINED = 4,
+}ShooterState;
 class Shooter {
 public:
     Shooter(const shooter_controller::Params& params);
 
     ~Shooter();
 
-    void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, rclcpp::Time now);
+    void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
+                                rclcpp::Time now);
 
     void update_moto_state(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
                             std::vector<hardware_interface::LoanedStateInterface>& state_interfaces);
@@ -63,7 +76,7 @@ private:
 
     void stop_dial();
 
-    void handle_undefined();
+    void caculate_heat();
 
     shooter_controller::Params params_;
 
@@ -74,6 +87,10 @@ private:
     math_utilities::MotorPacket* right_down_shooter_;
     math_utilities::MotorPacket* dial_up_;
     math_utilities::MotorPacket* dial_down_;
+
+    double res_heat_;
+
+
 
     ShooterState last_state_;
     double last_shooter_cmd_time_;
