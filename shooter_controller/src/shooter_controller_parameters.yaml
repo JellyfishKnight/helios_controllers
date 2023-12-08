@@ -51,6 +51,11 @@ shooter_controller:
     default_value: 10,
     description: "the heat limit of shooter",
   }
+  shooter_cmd_expire_time: {
+    type: double,
+    default_value: 0.1,
+    description: "the time interval between two commands",
+  }
   shooter: 
     high_velocity: {
       type: double,
