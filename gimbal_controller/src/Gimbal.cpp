@@ -9,6 +9,8 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  */
 #include "Gimbal.hpp"
+#include <cmath>
+#include <rclcpp/logging.hpp>
 
 namespace helios_control {
 
@@ -16,6 +18,8 @@ Gimbal::Gimbal(const gimbal_controller::Params& params) :
     last_state_(CRUISE), params_(params){
     last_autoaim_msg_time_ = 0.0;
     imu_round_cnt_ = 0;
+    accel_cnt_ = 0;
+    pitch_vel_flag_ = 1;
 }
 
 Gimbal::~Gimbal() {
@@ -38,6 +42,7 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
     }
     imu_total_yaw_ = imu_euler.yaw + imu_round_cnt_ * 360;
     last_imu_yaw_ = imu_euler.yaw;
+    imu_pitch_= imu_euler.pitch;
     // Update time source
     rclcpp::Time time = gimbal_cmd.header.stamp;
     // Update state machine
@@ -52,7 +57,7 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
             last_state_ = AUTOAIM;
             last_autoaim_msg_time_ = time.seconds();
         }
-    } else if (last_autoaim_msg_time_ == CRUISE) {
+    } else if (last_state_ == CRUISE) {
         if (gimbal_cmd.gimbal_mode == DEBUG) {
             last_state_ = DEBUG;
         } else if (gimbal_cmd.gimbal_mode == CRUISE) {
@@ -61,7 +66,7 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
             last_state_ = AUTOAIM;
             last_autoaim_msg_time_ = time.seconds();
         }
-    } else if (gimbal_cmd.gimbal_mode == DEBUG) {
+    } else if (last_state_ == DEBUG) {
         if (gimbal_cmd.gimbal_mode == DEBUG) {
             last_state_ = DEBUG;
         } else if (gimbal_cmd.gimbal_mode == CRUISE) {
@@ -70,7 +75,7 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
             last_state_ = AUTOAIM;
             last_autoaim_msg_time_ = time.seconds();
         }
-    } else if (gimbal_cmd.gimbal_mode == UNDEFINED) {
+    } else if (last_state_ == UNDEFINED) {
         last_state_ = static_cast<GimbalState>(gimbal_cmd.gimbal_mode);
     } else {
        last_state_ = UNDEFINED; 
@@ -125,11 +130,15 @@ void Gimbal::do_cruise(double yaw_vel, double pitch_vel) {
     yaw_moto_ptr_->value_ = yaw_vel;
     yaw_moto_ptr_->motor_mode_ = 0x01;
     // Set pitch motor velocity
-    if (pitch_moto_ptr_->angle_ >= params_.pitch_max_angle) {
-        pitch_moto_ptr_->value_ = -std::abs(pitch_vel);
-    } else {
-        pitch_moto_ptr_->value_ = pitch_vel;
+    if (std::abs(pitch_moto_ptr_->total_angle_ - params_.pitch_max_angle) < 100 || 
+        std::abs(pitch_moto_ptr_->total_angle_ - params_.pitch_min_angle) < 100) {
+        accel_cnt_++;
+        if (accel_cnt_ > 200) {
+            pitch_vel_flag_ = -pitch_vel_flag_;
+            accel_cnt_ = 0;
+        }
     }
+    pitch_moto_ptr_->value_ = pitch_vel_flag_ * pitch_vel;
     pitch_moto_ptr_->motor_mode_ = 0x01;
 }
 
@@ -148,8 +157,8 @@ void Gimbal::do_autoaim(double yaw_angle, double pitch_angle) {
         angles::from_degrees(imu_pitch_),
         angles::from_degrees(pitch_angle)
     );
-    pitch_diff = (-pitch_diff / 2 / M_PI) * 8192.0;
-    pitch_moto_ptr_->value_ = pitch_moto_ptr_->angle_ + pitch_diff;
+    pitch_diff = (pitch_diff / 2 / M_PI) * 8192.0;
+    pitch_moto_ptr_->value_ = pitch_moto_ptr_->total_angle_ + pitch_diff;
     // Limit pitch's motor angle
     if (pitch_moto_ptr_->value_ > params_.pitch_max_angle) {
         pitch_moto_ptr_->value_ = params_.pitch_max_angle;

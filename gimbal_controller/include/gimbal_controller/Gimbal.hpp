@@ -29,15 +29,15 @@
 namespace helios_control {
 
 typedef enum {
-    AUTOAIM,
-    CRUISE,
-    DEBUG,
-    UNDEFINED,
+    AUTOAIM = 1,
+    CRUISE = 2,
+    DEBUG = 0,
+    UNDEFINED = 3,
 } GimbalState;
 
 typedef enum {
-    DEBUG_POSITION,
-    DEBUG_VELOCITY,
+    DEBUG_POSITION = 0,
+    DEBUG_VELOCITY = 1,
 } DebugMode;
 
 class Gimbal {
@@ -68,6 +68,9 @@ private:
     void do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd);
 
     GimbalState last_state_;
+    int pitch_vel_flag_ = 1;
+    int accel_cnt_ = 0;
+    int last_pitch_angle_ = 0;;
 
     double last_autoaim_msg_time_;
 
