@@ -59,11 +59,11 @@ gimbal_controller:
   }
   yaw_vel_limit: {
     type: double,
-    default_value: 1.5,
+    default_value: 15,
     description: "the max velocity of yaw",
   }
   pitch_vel_limit: {
     type: double,
-    default_value: 1.5,
+    default_value: 30,
     description: "the max velocity of pitch",
   }

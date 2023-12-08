@@ -165,6 +165,10 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
                 );
                 msg->twist.angular.z = msg->twist.angular.z / msg->twist.angular.z * params_.max_angular_vel;
             }
+            // Convert rpm to velocity
+            msg->twist.linear.x = msg->twist.linear.x / 60 * 8192 / 1000;
+            msg->twist.linear.y = msg->twist.linear.y / 60 * 8192 / 1000;
+            msg->twist.angular.z = msg->twist.angular.z / 60 * 8192 / 1000;
             received_gimbal_cmd_ptr_.set(std::move(msg));
 
         }

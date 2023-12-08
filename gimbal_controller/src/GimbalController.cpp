@@ -149,6 +149,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     );
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
+                // Convert velocity to rpm
+                msg->twist.linear.x = msg->twist.linear.x / 60 * 8192 / 1000;
+                msg->twist.linear.y = msg->twist.linear.y / 60 * 8192 / 1000;
+                msg->twist.angular.z = msg->twist.angular.z / 60 * 8192 / 1000;
                 received_chassis_cmd_ptr_.set(std::move(msg));
             }
         );
@@ -168,6 +172,9 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     );
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
+                // Convert rpm to velocity
+                msg->cruise_yaw_vel = msg->cruise_yaw_vel / 60 * 8192 / 1000;
+                msg->cruise_pitch_vel = msg->cruise_pitch_vel / 60 * 8192 / 1000;
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
@@ -269,7 +276,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     // Update motor value
     gimbal_->update_moto(cmd_map_, state_interfaces_);
     // Set gimbal commands
-    gimbal_->set_gimbal_cmd(*last_command_msg, last_imu_msg_);
+    gimbal_->set_gimbal_cmd(*last_command_msg, last_imu_msg_, chassis_msg->twist.angular.z);
     // get diff yaw from imu to chassis
     double diff_yaw_from_imu_to_chassis = gimbal_->caculate_diff_angle_from_imu_to_chassis();
     // publish tf2 transform from imu to chassis

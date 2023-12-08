@@ -31,7 +31,8 @@ void Gimbal::update_params(const gimbal_controller::Params& params) {
 }
 
 void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd,
-                        const sensor_interfaces::msg::ImuEuler& imu_euler) {
+                        const sensor_interfaces::msg::ImuEuler& imu_euler,
+                        double chassis_rotation_vel) {
     // Update imu info
     double yaw_diff = imu_euler.yaw - last_imu_yaw_;
     if (yaw_diff < -180) {
@@ -82,13 +83,13 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
     }
     // Update gimbal command
     if (last_state_ == DEBUG) {
-        do_debug(gimbal_cmd);
+        do_debug(gimbal_cmd, chassis_rotation_vel);
     } else if (last_state_ == CRUISE) {
-        do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel);
+        do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
     } else if (last_state_ == AUTOAIM) {
         do_autoaim(gimbal_cmd.yaw, gimbal_cmd.pitch);
     } else {
-        do_undefined(gimbal_cmd);
+        do_undefined(gimbal_cmd, chassis_rotation_vel);
     }
 }
 
@@ -99,25 +100,25 @@ void Gimbal::update_moto(std::map<std::string, math_utilities::MotorPacket>& cmd
     pitch_moto_ptr_ = &cmd_map.find("pitch")->second;
 }
 
-void Gimbal::do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd) {
+void Gimbal::do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel) {
     // Auto turn to cruise mode to prevent serious damage
     RCLCPP_ERROR(logger_, "Gimbal is in undefined state");
-    do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel);
+    do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
     return;
 }
 
-void Gimbal::do_debug(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd) {
+void Gimbal::do_debug(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel) {
     if (gimbal_cmd.gimbal_mode == DEBUG_POSITION) {
         do_autoaim(gimbal_cmd.yaw, gimbal_cmd.pitch);
     } else if (gimbal_cmd.gimbal_mode == DEBUG_VELOCITY) {
-        do_cruise(gimbal_cmd.yaw, gimbal_cmd.pitch);
+        do_cruise(gimbal_cmd.yaw, gimbal_cmd.pitch, chassis_rotation_vel);
     } else {
         RCLCPP_ERROR(logger_, "Invalid debug mode");
-        do_undefined(gimbal_cmd);
+        do_undefined(gimbal_cmd, chassis_rotation_vel);
     } 
 }
 
-void Gimbal::do_cruise(double yaw_vel, double pitch_vel) {
+void Gimbal::do_cruise(double yaw_vel, double pitch_vel, double chassis_rotation_vel) {
     // Set yaw motor velocity
     // Limit yaw's motor velocity
     if (std::abs(yaw_vel) > params_.yaw_vel_limit) {
@@ -127,7 +128,7 @@ void Gimbal::do_cruise(double yaw_vel, double pitch_vel) {
     if (std::abs(pitch_vel) > params_.pitch_vel_limit) {
         pitch_vel = pitch_vel > 0 ? params_.pitch_vel_limit : -params_.pitch_vel_limit;
     }
-    yaw_moto_ptr_->value_ = yaw_vel;
+    yaw_moto_ptr_->value_ = yaw_vel + chassis_rotation_vel;
     yaw_moto_ptr_->motor_mode_ = 0x01;
     // Set pitch motor velocity
     if (std::abs(pitch_moto_ptr_->total_angle_ - params_.pitch_max_angle) < 100 || 

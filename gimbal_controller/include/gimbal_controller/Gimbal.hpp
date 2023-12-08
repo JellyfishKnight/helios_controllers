@@ -47,7 +47,8 @@ public:
     ~Gimbal();
 
     void set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd,
-                        const sensor_interfaces::msg::ImuEuler& imu_euler);
+                        const sensor_interfaces::msg::ImuEuler& imu_euler,
+                        double chassis_rotation_vel);
 
     void update_moto(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
                         const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces);
@@ -59,18 +60,18 @@ public:
     math_utilities::MotorPacket* yaw_moto_ptr_;
     math_utilities::MotorPacket* pitch_moto_ptr_;
 private:
-    void do_debug(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd);
+    void do_debug(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel);
 
-    void do_cruise(double yaw_vel, double pitch_vel);
+    void do_cruise(double yaw_vel, double pitch_vel, double chassis_rotation_vel);
 
     void do_autoaim(double yaw_angle, double pitch_angle);
 
-    void do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd);
+    void do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel);
 
     GimbalState last_state_;
     int pitch_vel_flag_ = 1;
     int accel_cnt_ = 0;
-    int last_pitch_angle_ = 0;;
+    int last_pitch_angle_ = 0;
 
     double last_autoaim_msg_time_;
 
