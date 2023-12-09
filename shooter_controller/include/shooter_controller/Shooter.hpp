@@ -29,8 +29,6 @@
 // https://github.com/PickNikRobotics/generate_parameter_library
 #include "shooter_controller_parameters.hpp"
 
-
-
 namespace helios_control {
 
 #define FIRE 1
@@ -56,6 +54,7 @@ public:
     ~Shooter();
 
     void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
+                                sensor_interfaces::msg::PowerHeatData power_heat_data,
                                 rclcpp::Time now);
 
     void update_moto_state(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
@@ -76,7 +75,8 @@ private:
 
     void stop_dial();
 
-    void caculate_heat();
+    bool judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data, double time_diff);
+
 
     shooter_controller::Params params_;
 
@@ -88,7 +88,15 @@ private:
     math_utilities::MotorPacket* dial_up_;
     math_utilities::MotorPacket* dial_down_;
 
+    // heat data
+    double dial_up_init_heat_;
+    double dial_down_init_heat_;
+    double dial_up_now_heat_;
+    double dial_down_now_heat_;
+    bool dial_up_init_flag;
+    bool dial_down_init_flag;
     double res_heat_;
+    double starting_time_;
 
     ShooterState last_state_;
     double last_shooter_cmd_time_;

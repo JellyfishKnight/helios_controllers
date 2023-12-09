@@ -33,14 +33,13 @@ void Shooter::update_moto_state(std::map<std::string, math_utilities::MotorPacke
 
 
 void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
+                                    sensor_interfaces::msg::PowerHeatData power_heat_data,
                                     rclcpp::Time now) {
     // Update time source
     rclcpp::Time time = shooter_cmd.header.stamp;
     double time_diff = now.seconds() - time.seconds();
-    // Update rest heat
-    caculate_heat();
     // Check if we can start dial
-    if (time_diff > params_.shooter_cmd_expire_time || res_heat_ < params_.heat_limit) {
+    if (time_diff > params_.shooter_cmd_expire_time || judge_heat(power_heat_data, time_diff)) {
         if (last_state_ == DIAL_RUNNING) {
             if (is_dial_runnning()) {
                 stop_dial();
@@ -186,11 +185,16 @@ bool Shooter::is_dial_runnning() {
     if (dial_up_->is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
         dial_up_->solve_block_mode(params_.dial.count_clock_wise_angle);
     }
-    if (std::abs(dial_down_->real_current_) < 10 ||
-        std::abs(dial_up_->real_current_) < 10) {
-        return false;
-    } else {
+    bool is_dial_up_started, is_dial_down_started;
+    is_dial_up_started = std::abs(dial_up_->real_current_) > 10;
+    is_dial_down_started = std::abs(dial_down_->real_current_) > 10;
+    if (is_dial_up_started) {
+        
+    }
+    if (is_dial_up_started && is_dial_down_started) {
         return true;
+    } else {
+        return false;
     }
 }
 
@@ -201,5 +205,30 @@ void Shooter::stop_dial() {
     dial_down_->motor_mode_ = 0x01;
 }
 
+bool Shooter::judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data,
+                         double time_diff) {
+    if (is_dial_runnning()) {
+        if (!dial_up_init_flag) {
+            dial_up_init_heat_ = power_heat_data.shooter_id1_17mm_residual_cooling_heat;
+            dial_up_init_flag = true;
+        }
+        if (!dial_down_init_flag) {
+            dial_down_init_heat_ = power_heat_data.shooter_id2_17mm_residual_cooling_heat;
+            dial_down_init_flag = true;
+        }
+        dial_up_now_heat_ += dial_up_->real_current_ * time_diff / 8192 / 3 * 8;
+        dial_down_now_heat_ += dial_down_->real_current_ * time_diff / 8192 / 3 * 8;
+        if (dial_up_now_heat_ < params_.heat_limit && dial_down_now_heat_ < params_.heat_limit) {
+            return true;
+        } else {
+            return false;
+        }
+
+    } else {
+        dial_up_init_flag = false;
+        dial_down_init_flag = false;
+        return true;
+    }
+}
 
 } // namespace helios_control
