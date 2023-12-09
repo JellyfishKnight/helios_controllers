@@ -34,6 +34,9 @@ namespace helios_control {
 #define FIRE 1
 #define HOLD 0
 
+#define UP_DIAL_BLOCKED 1
+#define DOWN_DIAL_BLOCKED 2
+
 typedef enum {
     STOP = 0,
     LOW = 1,
@@ -77,8 +80,13 @@ private:
 
     bool judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data, double time_diff);
 
+    bool check_dial_blocked();
+
+    void solve_block_mode(int mode);
+
 
     shooter_controller::Params params_;
+    rclcpp::Time last_cmd_stamp_;
 
     // motors
     math_utilities::MotorPacket* left_up_shooter_;
@@ -87,6 +95,12 @@ private:
     math_utilities::MotorPacket* right_down_shooter_;
     math_utilities::MotorPacket* dial_up_;
     math_utilities::MotorPacket* dial_down_;
+
+    bool is_blocked_;
+    int up_dial_block_cnt_ = 0;
+    int down_dial_block_cnt_ = 0;
+    int solve_up_block_cnt = 0;
+    int solve_down_block_cnt = 0;
 
     // heat data
     double dial_up_init_heat_;

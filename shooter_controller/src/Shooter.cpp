@@ -10,12 +10,15 @@
  *
  */
 #include "Shooter.hpp"
+#include <cmath>
+#include <rclcpp/logging.hpp>
 
 namespace helios_control {
 
 Shooter::Shooter(const shooter_controller::Params& params) {
     params_ = params;
     last_state_ = SHOOTER_LOCKED;
+    is_blocked_ = false;
 }
 
 Shooter::~Shooter() {}
@@ -36,10 +39,10 @@ void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shoo
                                     sensor_interfaces::msg::PowerHeatData power_heat_data,
                                     rclcpp::Time now) {
     // Update time source
-    rclcpp::Time time = shooter_cmd.header.stamp;
-    double time_diff = now.seconds() - time.seconds();
+    double time_diff = now.seconds() - last_cmd_stamp_.seconds();
+    last_cmd_stamp_ = now;
     // Check if we can start dial
-    if (time_diff > params_.shooter_cmd_expire_time || judge_heat(power_heat_data, time_diff)) {
+    if (time_diff > params_.shooter_cmd_expire_time ) {//|| judge_heat(power_heat_data, time_diff)) {
         if (last_state_ == DIAL_RUNNING) {
             if (is_dial_runnning()) {
                 stop_dial();
@@ -103,15 +106,16 @@ void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shoo
             // Stop both dial and shooter
             last_state_ = UNDEFINED;
         } else {
-            if (!is_dial_runnning()) {
-                last_state_ = DIAL_LOCKED;
+            if (check_dial_blocked()) {
+                RCLCPP_INFO(logger_, "dial is blocked!");
             } else {
                 if (shooter_cmd.fire_flag == HOLD) {
                     stop_dial();
                 } else if (shooter_cmd.fire_flag != FIRE) {
                     last_state_ = UNDEFINED;
+                } else {
+                    start_dial(shooter_cmd);
                 }
-
             }
         }
     } else if (last_state_ == UNDEFINED) {
@@ -131,6 +135,8 @@ void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shoo
     } else {
         last_state_ = UNDEFINED;
     }
+    // RCLCPP_INFO(logger_, "%d         %f", dial_down_->real_current_, dial_down_->value_);
+    // RCLCPP_WARN(logger_, "last_state_: %d", last_state_);
 }
 
 void Shooter::update_params(const shooter_controller::Params& params) {
@@ -179,18 +185,10 @@ void Shooter::start_dial(const helios_control_interfaces::msg::ShooterCmd& shoot
 }
 
 bool Shooter::is_dial_runnning() {
-    if (dial_down_->is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
-        dial_down_->solve_block_mode(params_.dial.count_clock_wise_angle);
-    }
-    if (dial_up_->is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
-        dial_up_->solve_block_mode(params_.dial.count_clock_wise_angle);
-    }
     bool is_dial_up_started, is_dial_down_started;
-    is_dial_up_started = std::abs(dial_up_->real_current_) > 10;
+    // is_dial_up_started = std::abs(dial_up_->real_current_) > 10;
+    is_dial_up_started = true;
     is_dial_down_started = std::abs(dial_down_->real_current_) > 10;
-    if (is_dial_up_started) {
-        
-    }
     if (is_dial_up_started && is_dial_down_started) {
         return true;
     } else {
@@ -228,6 +226,49 @@ bool Shooter::judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data,
         dial_up_init_flag = false;
         dial_down_init_flag = false;
         return true;
+    }
+}
+
+bool Shooter::check_dial_blocked() {
+    if (is_blocked_) {
+        is_blocked_ = true;
+        solve_block_mode(DOWN_DIAL_BLOCKED);
+    } else {
+        if ((std::abs(dial_down_->real_current_) < 100 && dial_down_->value_ != 0) || dial_down_->given_current_ > params_.dial.dial_current_limit) {
+            down_dial_block_cnt_++;
+            if (down_dial_block_cnt_ >= params_.dial.dial_block_cnt_limit) {
+                down_dial_block_cnt_ = 0;
+                is_blocked_ = true;
+            }
+        }
+        if ((std::abs(dial_up_->real_current_) < 10 && dial_up_->value_ != 0) || dial_down_->given_current_ > params_.dial.dial_current_limit) {
+            up_dial_block_cnt_++;
+            if (up_dial_block_cnt_ >= params_.dial.dial_block_cnt_limit) {
+                up_dial_block_cnt_ = 0;
+                // is_blocked_ = true;
+            }
+        }
+    }
+    return is_blocked_;
+}
+
+void Shooter::solve_block_mode(int mode) {
+    if (mode == UP_DIAL_BLOCKED) {
+        solve_up_block_cnt++;
+        if (solve_up_block_cnt > 400) {
+            is_blocked_ = false;
+            solve_up_block_cnt = 0;
+        }
+        dial_up_->value_ = -100;
+        dial_up_->motor_mode_ = 0x01;
+    } else if (mode == DOWN_DIAL_BLOCKED) {
+        solve_down_block_cnt++;
+        if (solve_down_block_cnt > 400) {
+            is_blocked_ = false;
+            solve_down_block_cnt = 0;
+        }
+        dial_down_->value_ = -100;
+        dial_down_->motor_mode_ = 0x01;
     }
 }
 

@@ -56,9 +56,7 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
         } else if (gimbal_cmd.gimbal_mode == CRUISE) {
             if (now.seconds() - last_autoaim_msg_time_.seconds() > params_.autoaim_expire_time) {
                 last_state_ = CRUISE;
-                RCLCPP_INFO(logger_, "expired");
             } else {
-                RCLCPP_INFO(logger_, "not expired");
             }
         } else {
             last_state_ = AUTOAIM;
@@ -84,7 +82,6 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
     } else {
        last_state_ = UNDEFINED; 
     }
-    RCLCPP_INFO(logger_, "Gimbal state: %d", last_state_);
     // Update gimbal command
     if (last_state_ == DEBUG) {
         do_debug(gimbal_cmd, chassis_rotation_vel);

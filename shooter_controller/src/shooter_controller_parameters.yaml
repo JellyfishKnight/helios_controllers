@@ -42,8 +42,8 @@ shooter_controller:
       2, 0x200, 4, 1, 0.0, #2
       2, 0x200, 1, 1, 0.0, #3
       2, 0x200, 3, 1, 0.0, #4
-      1, 0x1ff, 1, 1, 0.0, #5
       2, 0x1ff, 3, 1, 0.0, #6
+      1, 0x1ff, 1, 1, 0.0, #5
     ],
   }
   heat_limit: {
@@ -64,7 +64,7 @@ shooter_controller:
     }
     low_velocity: {
       type: double,
-      default_value: 100,
+      default_value: 250,
       description: "Low velocity of shooter",
     }
   dial: 
@@ -91,7 +91,7 @@ shooter_controller:
     }
     dial_block_cnt_limit: {
       type: double,
-      default_value: 2000,
+      default_value: 50,
       description: "Block count limit of dial",
     }
 
