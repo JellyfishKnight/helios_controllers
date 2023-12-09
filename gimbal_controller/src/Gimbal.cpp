@@ -47,8 +47,6 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
     imu_pitch_= imu_euler.pitch;
     // Update time source
     if (gimbal_cmd.gimbal_mode == AUTOAIM) {
-        last_autoaim_msg_time_ = rclcpp::Time(last_autoaim_msg_time_);
-    } else {
         last_autoaim_msg_time_ = now;
     }
     // Update state machine
@@ -58,6 +56,9 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
         } else if (gimbal_cmd.gimbal_mode == CRUISE) {
             if (now.seconds() - last_autoaim_msg_time_.seconds() > params_.autoaim_expire_time) {
                 last_state_ = CRUISE;
+                RCLCPP_INFO(logger_, "expired");
+            } else {
+                RCLCPP_INFO(logger_, "not expired");
             }
         } else {
             last_state_ = AUTOAIM;
@@ -91,8 +92,6 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
         do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
     } else if (last_state_ == AUTOAIM && gimbal_cmd.gimbal_mode == AUTOAIM) {
         do_autoaim(gimbal_cmd.yaw, gimbal_cmd.pitch);
-    } else {
-        do_undefined(gimbal_cmd, chassis_rotation_vel);
     }
 }
 
