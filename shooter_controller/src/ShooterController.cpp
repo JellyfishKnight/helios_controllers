@@ -239,39 +239,39 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             realtime_shooter_state_pub_->unlockAndPublish();
         }
     }
-    // caculate shooter speed
-    double velocity_rpm = 0;
-    if (last_command_msg->shooter_mode == SHOOTER_STOP) {
-        velocity_rpm = 0;
-    } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
-        velocity_rpm = params_.shooter.high_velocity;
-    }
+    // // caculate shooter speed
+    // double velocity_rpm = 0;
+    // if (last_command_msg->shooter_mode == SHOOTER_STOP) {
+    //     velocity_rpm = 0;
+    // } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
+    //     velocity_rpm = params_.shooter.high_velocity;
+    // }
     auto shooter_left_up = cmd_map_.find("shooter_left_up");
     auto shooter_left_down = cmd_map_.find("shooter_left_down");
     auto shooter_right_up = cmd_map_.find("shooter_right_up");
     auto shooter_right_down = cmd_map_.find("shooter_right_down");
-    shooter_left_up->second.value_ = -velocity_rpm;
-    shooter_left_down->second.value_ = velocity_rpm;
-    shooter_right_up->second.value_ = velocity_rpm;
-    shooter_right_down->second.value_ = -velocity_rpm;
-    // caculate dial speed or angle
-    // check if heat has run out
-    if (last_command_msg->dial_mode == DIAL_STOP ||
-        last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit || 
-        velocity_rpm == 0) {
-        dial_up->second.value_ = dial_down->second.value_ = 0;
-    } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
-        double velocity = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
-        dial_up->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
-        dial_down->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
-        dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x01;
-    } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
-        if (last_command_msg->fire_flag == 1) {
-            dial_up->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
-            dial_down->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
-            dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x02;
-        }
-    }
+    // shooter_left_up->second.value_ = -velocity_rpm;
+    // shooter_left_down->second.value_ = velocity_rpm;
+    // shooter_right_up->second.value_ = velocity_rpm;
+    // shooter_right_down->second.value_ = -velocity_rpm;
+    // // caculate dial speed or angle
+    // // check if heat has run out
+    // if (last_command_msg->dial_mode == DIAL_STOP ||
+    //     last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit || 
+    //     velocity_rpm == 0) {
+    //     dial_up->second.value_ = dial_down->second.value_ = 0;
+    // } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
+    //     double velocity = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
+    //     dial_up->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
+    //     dial_down->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
+    //     dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x01;
+    // } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
+    //     if (last_command_msg->fire_flag == 1) {
+    //         dial_up->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
+    //         dial_down->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
+    //         dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x02;
+    //     }
+    // }
     // convert into command_interfaces
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());

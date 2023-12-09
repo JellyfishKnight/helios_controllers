@@ -62,6 +62,11 @@ shooter_controller:
       default_value: 500,
       description: "High velocity of shooter",
     }
+    low_velocity: {
+      type: double,
+      default_value: 100,
+      description: "Low velocity of shooter",
+    }
   dial: 
     dial_motor_number: {
       type: int,

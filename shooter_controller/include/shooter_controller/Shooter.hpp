@@ -90,8 +90,6 @@ private:
 
     double res_heat_;
 
-
-
     ShooterState last_state_;
     double last_shooter_cmd_time_;
 

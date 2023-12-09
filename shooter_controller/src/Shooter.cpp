@@ -50,7 +50,7 @@ void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shoo
         } else if (last_state_ == SHOOTER_LOCKED) {
             start_shooter(shooter_cmd);
         } else if (last_state_ == UNDEFINED) {
-            handle_undefined();
+            last_state_ = SHOOTER_LOCKED;
         }
         return ;
     }
@@ -140,27 +140,65 @@ void Shooter::update_params(const shooter_controller::Params& params) {
 
 
 void Shooter::start_shooter(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd) {
-
+    if (shooter_cmd.shooter_speed == LOW) {
+        left_up_shooter_->value_ = -params_.shooter.low_velocity;
+        left_down_shooter_->value_ = params_.shooter.low_velocity;
+        right_up_shooter_->value_ = params_.shooter.low_velocity;
+        right_down_shooter_->value_ = -params_.shooter.low_velocity;
+    } else if (shooter_cmd.shooter_speed == HIGH) {
+        left_up_shooter_->value_ = -params_.shooter.high_velocity;
+        left_down_shooter_->value_ = params_.shooter.high_velocity;
+        right_up_shooter_->value_ = params_.shooter.high_velocity;
+        right_down_shooter_->value_ = -params_.shooter.high_velocity;
+    }
 }
 
 bool Shooter::is_shooter_runnning() {
-
+    if (std::abs(left_up_shooter_->real_current_) < 10 ||
+        std::abs(left_down_shooter_->real_current_) < 10 ||
+        std::abs(right_up_shooter_->real_current_) < 10 ||
+        std::abs(right_down_shooter_->real_current_) < 10) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 void Shooter::stop_shooter() {
-
+    left_up_shooter_->value_ = 0;
+    left_down_shooter_->value_ = 0;
+    right_up_shooter_->value_ = 0;
+    right_down_shooter_->value_ = 0;
 }
 
 void Shooter::start_dial(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd) {
-
+    double dial_vel = params_.dial.dial_velocity_level[shooter_cmd.dial_vel];
+    dial_down_->value_ = dial_vel;
+    dial_up_->value_ = dial_vel;
+    dial_up_->motor_mode_ = 0x01;
+    dial_down_->motor_mode_ = 0x01;
 }
 
 bool Shooter::is_dial_runnning() {
-
+    if (dial_down_->is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
+        dial_down_->solve_block_mode(params_.dial.count_clock_wise_angle);
+    }
+    if (dial_up_->is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
+        dial_up_->solve_block_mode(params_.dial.count_clock_wise_angle);
+    }
+    if (std::abs(dial_down_->real_current_) < 10 ||
+        std::abs(dial_up_->real_current_) < 10) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 void Shooter::stop_dial() {
-
+    dial_down_->value_ = 0;
+    dial_up_->value_ = 0;
+    dial_up_->motor_mode_ = 0x01;
+    dial_down_->motor_mode_ = 0x01;
 }
 
 
