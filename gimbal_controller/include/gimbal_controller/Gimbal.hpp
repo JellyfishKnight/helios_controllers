@@ -13,6 +13,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <angles/angles.h>
+#include <rclcpp/time.hpp>
 
 #include "helios_control_interfaces/msg/gimbal_cmd.hpp"
 #include "sensor_interfaces/msg/imu_euler.hpp"
@@ -48,6 +49,7 @@ public:
 
     void set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd,
                         const sensor_interfaces::msg::ImuEuler& imu_euler,
+                        rclcpp::Time now,
                         double chassis_rotation_vel);
 
     void update_moto(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
@@ -73,7 +75,7 @@ private:
     int accel_cnt_ = 0;
     int last_pitch_angle_ = 0;
 
-    double last_autoaim_msg_time_;
+    rclcpp::Time last_autoaim_msg_time_;
 
     gimbal_controller::Params params_;
     

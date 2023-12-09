@@ -170,7 +170,6 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
             msg->twist.linear.y = msg->twist.linear.y / 60 * 8192 / 1000;
             msg->twist.angular.z = msg->twist.angular.z / 60 * 8192 / 1000;
             received_gimbal_cmd_ptr_.set(std::move(msg));
-
         }
     );
     // set publish rate

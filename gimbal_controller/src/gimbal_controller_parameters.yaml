@@ -44,7 +44,7 @@ gimbal_controller:
   }
   autoaim_expire_time: {
     type: double,
-    default_value: 0.5,
+    default_value: 0.1,
     description: "the time interval between two commands",
   }
   pitch_max_angle: {

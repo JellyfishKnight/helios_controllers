@@ -276,7 +276,7 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     // Update motor value
     gimbal_->update_moto(cmd_map_, state_interfaces_);
     // Set gimbal commands
-    gimbal_->set_gimbal_cmd(*last_command_msg, last_imu_msg_, chassis_msg->twist.angular.z);
+    gimbal_->set_gimbal_cmd(*last_command_msg, last_imu_msg_, this->get_node()->now(), chassis_msg->twist.angular.z);
     // get diff yaw from imu to chassis
     double diff_yaw_from_imu_to_chassis = gimbal_->caculate_diff_angle_from_imu_to_chassis();
     // publish tf2 transform from imu to chassis
