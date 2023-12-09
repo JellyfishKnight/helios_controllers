@@ -42,7 +42,7 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
     else if (yaw_diff > 180) {
         imu_round_cnt_--;
     }
-    imu_total_yaw_ = imu_euler.yaw + imu_round_cnt_ * 360;
+    imu_total_yaw_ = imu_euler.yaw + imu_round_cnt_ * 360 - imu_euler.init_yaw;
     last_imu_yaw_ = imu_euler.yaw;
     imu_pitch_= imu_euler.pitch;
     // Update time source

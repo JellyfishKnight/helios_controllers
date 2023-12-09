@@ -54,6 +54,7 @@ controller_interface::CallbackReturn ShooterController::on_init() {
         RCLCPP_ERROR(logger_, "The number of velocity level is not 10");
         return controller_interface::CallbackReturn::ERROR;
     }
+    shooter_ = std::make_shared<Shooter>(params_);
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -84,6 +85,7 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
         motor_number_ = static_cast<int>(params_.motor_names.size());
+        shooter_->update_params(params_);
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
     cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
@@ -178,34 +180,8 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         motor_number_ = static_cast<int>(params_.motor_names.size());
         state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
         command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+        shooter_->update_params(params_);
         RCLCPP_DEBUG(logger_, "Parameters were updated");
-    }
-    math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-    // block detection and resolve
-    auto dial_up = cmd_map_.find("dial_up");
-    auto dial_down = cmd_map_.find("dial_down");
-    if (dial_up->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit) || 
-        dial_down->second.is_blocked(params_.dial.dial_block_cnt_limit, params_.dial.dial_current_limit)) {
-        RCLCPP_WARN(logger_, "Dial is blocked, Solving it");
-        dial_up->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-        dial_down->second.solve_block_mode(static_cast<uint32_t>(params_.dial.count_clock_wise_angle));
-        for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
-            auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
-            if (motor_cmd != cmd_map_.end()) {
-                if (command_interfaces_[i].get_interface_name() == "can_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.can_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_type") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_type_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_id") {
-                    command_interfaces_[i].set_value(motor_cmd->second.motor_id_);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_mode") {
-                    command_interfaces_[i].set_value(0x02);
-                } else if (command_interfaces_[i].get_interface_name() == "motor_value") {
-                    command_interfaces_[i].set_value(motor_cmd->second.value_);
-                }
-            }
-        }
-        return controller_interface::return_type::OK;
     }
     // check if command message if nullptr
     received_shooter_cmd_ptr_.get(last_command_msg);
@@ -239,39 +215,10 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
             realtime_shooter_state_pub_->unlockAndPublish();
         }
     }
-    // caculate shooter speed
-    double velocity_rpm = 0;
-    if (last_command_msg->shooter_mode == SHOOTER_STOP) {
-        velocity_rpm = 0;
-    } else if (last_command_msg->shooter_mode == SHOOTER_HIGH_VELOCITY) {
-        velocity_rpm = params_.shooter.high_velocity;
-    }
-    auto shooter_left_up = cmd_map_.find("shooter_left_up");
-    auto shooter_left_down = cmd_map_.find("shooter_left_down");
-    auto shooter_right_up = cmd_map_.find("shooter_right_up");
-    auto shooter_right_down = cmd_map_.find("shooter_right_down");
-    shooter_left_up->second.value_ = -velocity_rpm;
-    shooter_left_down->second.value_ = velocity_rpm;
-    shooter_right_up->second.value_ = velocity_rpm;
-    shooter_right_down->second.value_ = -velocity_rpm;
-    // caculate dial speed or angle
-    // check if heat has run out
-    if (last_command_msg->dial_mode == DIAL_STOP ||
-        last_heat_msg->shooter_id1_17mm_residual_cooling_heat < params_.heat_limit || 
-        velocity_rpm == 0) {
-        dial_up->second.value_ = dial_down->second.value_ = 0;
-    } else if (last_command_msg->dial_mode == DIAL_CLOCKWISE) {
-        double velocity = params_.dial.dial_velocity_level[last_command_msg->dial_velocity_level];
-        dial_up->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
-        dial_down->second.value_ = last_command_msg->fire_flag == 1 ? velocity : 0;
-        dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x01;
-    } else if (last_command_msg->dial_mode == DIAL_COUNT_CLOCKWISE) {
-        if (last_command_msg->fire_flag == 1) {
-            dial_up->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
-            dial_down->second.value_ = dial_up->second.total_angle_ - params_.dial.count_clock_wise_angle;
-            dial_up->second.motor_mode_ = dial_down->second.motor_mode_ = 0x02;
-        }
-    }
+    // Update motor states
+    shooter_->update_moto_state(cmd_map_, state_interfaces_);
+    // set shooter command
+    shooter_->update_shooter_cmd(*last_command_msg, *last_heat_msg, time);
     // convert into command_interfaces
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
