@@ -16,7 +16,7 @@ gimbal_controller:
   }
   motor_state_interfaces: {
     type: string_array,
-    default_value: ["can_id", "motor_type", "motor_id", "position", "velocity", "current", "temperature"],
+    default_value: ["can_id", "motor_type", "motor_id", "total_angle", "velocity", "current", "temperature"],
     description: "Names of state interfaces of the motors",
   }
   publish_rate: {
@@ -44,7 +44,7 @@ gimbal_controller:
   }
   autoaim_expire_time: {
     type: double,
-    default_value: 0.1,
+    default_value: 0.5,
     description: "the time interval between two commands",
   }
   pitch_max_angle: {

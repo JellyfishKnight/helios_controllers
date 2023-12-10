@@ -16,7 +16,7 @@ omnidirectional_controller:
   }
   motor_state_interfaces: {
     type: string_array,
-    default_value: ["can_id", "motor_type", "motor_id", "position", "velocity", "current", "temperature"],
+    default_value: ["can_id", "motor_type", "motor_id", "total_angle", "velocity", "current", "temperature"],
     description: "Names of state interfaces of the motors",
   }
   motor_commands: {

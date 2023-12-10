@@ -269,7 +269,6 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     for (int i = 0; i < motor_number_; i++) {
         auto motor = cmd_map_.find(params_.motor_names[i]);
         motor->second.value_ = wheel_velocities_[i];
-        motor->second.set_motor_speed(wheel_velocities_[i]);
         RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
     }
     // convert into command_interfaces
