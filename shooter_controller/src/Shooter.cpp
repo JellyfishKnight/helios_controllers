@@ -131,7 +131,7 @@ void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shoo
                 }
             }
         }
-        RCLCPP_ERROR(logger_, "In Undefined state!");
+        // RCLCPP_ERROR(logger_, "In Undefined state!");
     } else {
         last_state_ = UNDEFINED;
     }
