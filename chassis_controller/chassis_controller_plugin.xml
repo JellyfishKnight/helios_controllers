@@ -1,0 +1,7 @@
+<library path="chassis_controller">
+    <class name="chassis_controller/ChassisController" type="helios_control::ChassisController" base_class_type="controller_interface::ControllerInterface">
+        <description>
+            A controller that computes wheel velocities from a twist command.
+        </description>
+    </class>
+</library>

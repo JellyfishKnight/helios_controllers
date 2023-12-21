@@ -130,6 +130,7 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
                 RCLCPP_WARN(logger_, "Received nullptr command message");
                 return ;
             }
+            last_cmd_time_ = rclcpp::Time(msg->header.stamp).seconds();
             received_shooter_cmd_ptr_.set(std::move(msg));
         }
     );
@@ -217,8 +218,13 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     }
     // Update motor states
     shooter_->update_moto_state(cmd_map_, state_interfaces_);
+    // Check time stamp
+    time_diff_ = this->get_node()->now().seconds() - last_cmd_time_;
+    if (time_diff_ > params_.shooter_cmd_expire_time) {
+        last_command_msg->fire_flag = HOLD;
+    }
     // set shooter command
-    shooter_->update_shooter_cmd(*last_command_msg, *last_heat_msg, time);
+    shooter_->update_shooter_cmd(*last_command_msg, *last_heat_msg, time_diff_);
     // convert into command_interfaces
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());

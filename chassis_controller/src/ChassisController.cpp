@@ -9,23 +9,12 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  *
  */
-#include "OmnidirectionalController.hpp"
-#include <geometry_msgs/msg/detail/point__struct.hpp>
-#include <iterator>
-#include <limits>
-#include <math_utilities/MotorPacket.hpp>
-#include <memory>
-#include <rclcpp/logging.hpp>
-#include <rclcpp/qos.hpp>
-#include <string>
-#include <tf2_ros/buffer.h>
-#include <utility>
-#include <vector>
+#include "ChassisController.hpp"
+
 
 namespace helios_control {
 
-
-controller_interface::CallbackReturn OmnidirectionalController::on_init() {
+controller_interface::CallbackReturn ChassisController::on_init() {
     // create params
     try {
         param_listener_ = std::make_shared<ParamsListener>(get_node());
@@ -34,45 +23,47 @@ controller_interface::CallbackReturn OmnidirectionalController::on_init() {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
     }
-    motor_number_ = static_cast<int>(params_.motor_names.size());
-    state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
-    command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
-    wheel_velocities_.resize(motor_number_, std::numeric_limits<double>::quiet_NaN());
-    // init params
-    for (int i = 0; i < motor_number_; i++) {
-        math_utilities::MotorPacket motor_packet(
-            params_.motor_names[i]
-        );
-        motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
-        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
-        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
-        motor_packet.motor_mode_ = 0x01;
-        motor_packet.value_ = params_.motor_commands[i * command_interface_number_ + 4];
-        // RCLCPP_DEBUG the motor packet info
-        RCLCPP_DEBUG(logger_, "can_id %d, motor_type: %d, motor_id: %d", motor_packet.can_id_, motor_packet.motor_type_, motor_packet.motor_id_);
-        // init map
-        cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
+    // Check the type of chassis
+    if (params_.chassis_type == "omnidirectional") {
+        chassis_solver_ = std::make_shared<OmnidirectionalSolver>();
+        motor_names_ = params_.motor_names.omnidirectional;
+        motor_number_ = static_cast<int>(params_.motor_names.omnidirectional.size());
+        command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+        // Init Motors
+        for (int i = 0; i < motor_number_; i++) {
+            math_utilities::MotorPacket motor_packet(
+                params_.motor_names.omnidirectional[i]
+            );
+            motor_packet.can_id_ = params_.motor_commands.omnidirectional[i * command_interface_number_];
+            motor_packet.motor_type_ = static_cast<int>(params_.motor_commands.omnidirectional[i * command_interface_number_ + 1]);
+            motor_packet.motor_id_ = params_.motor_commands.omnidirectional[i * command_interface_number_ + 2];
+            motor_packet.motor_mode_ = 0x01;
+            motor_packet.value_ = params_.motor_commands.omnidirectional[i * command_interface_number_ + 4];
+
+            cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(motor_names_[i], motor_packet));
+        }
+    } else {
+        ///TODO: Complete other chassis type
+
     }
-    if (params_.motor_names.size() != motor_number_) {
-        RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
-        return controller_interface::CallbackReturn::ERROR;
-    }
+
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::InterfaceConfiguration OmnidirectionalController::command_interface_configuration() const {
+controller_interface::InterfaceConfiguration ChassisController::command_interface_configuration() const {
     std::vector<std::string> conf_names;
-    for (const auto& joint_name : params_.motor_names) {
+    for (const auto& joint_name : motor_names_) {
         for (auto & command_name : params_.motor_command_interfaces) {
             conf_names.push_back(joint_name + "/" + command_name);
         }
     }
     return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
+
 }
 
-controller_interface::InterfaceConfiguration OmnidirectionalController::state_interface_configuration() const {
+controller_interface::InterfaceConfiguration ChassisController::state_interface_configuration() const {
     std::vector<std::string> conf_names;
-    for (const auto & joint_name : params_.motor_names) {
+    for (const auto & joint_name : motor_names_) {
         for (const auto & state_name : params_.motor_state_interfaces) {
             conf_names.push_back(joint_name + "/" + state_name);
         }
@@ -80,31 +71,11 @@ controller_interface::InterfaceConfiguration OmnidirectionalController::state_in
     return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
 }
 
-controller_interface::CallbackReturn OmnidirectionalController::on_configure(const rclcpp_lifecycle::State &previous_state) {
+controller_interface::CallbackReturn ChassisController::on_configure(const rclcpp_lifecycle::State &previous_state) {
     if (!reset()) {
         return controller_interface::CallbackReturn::ERROR;
     }
-    // update parameters if they have changed
-    if (param_listener_->is_old(params_)) {
-        params_ = param_listener_->get_params();
-        motor_number_ = static_cast<int>(params_.motor_names.size());
-        RCLCPP_INFO(logger_, "Parameters were updated");
-    }
-
-    // init tf2 utilities
     cmd_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_timeout)};
-    // initialize marker
-    // linear velocity of target car
-    chassis_linear_vel_.type = visualization_msgs::msg::Marker::ARROW;
-    chassis_linear_vel_.ns = "linear_v";
-    chassis_linear_vel_.scale.x = 0.03;
-    chassis_linear_vel_.scale.y = 0.05;
-    chassis_linear_vel_.color.a = 1.0;
-    chassis_linear_vel_.color.r = 1.0;
-    chassis_linear_vel_.color.g = 1.0;
-    // init marker_pub_
-    marker_pub_ =
-        this->get_node()->create_publisher<visualization_msgs::msg::MarkerArray>("/chassis/marker", 10);
     // create publisher
     state_pub_ = get_node()->create_publisher<helios_control_interfaces::msg::MotorStates>(
         DEFAULT_COMMAND_OUT_TOPIC, rclcpp::SystemDefaultsQoS()
@@ -112,13 +83,7 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     realtime_gimbal_state_pub_ = std::make_shared<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>>(
         state_pub_
     );
-    geometry_msgs::msg::TwistStamped empty_gimbal_msg;
-    empty_gimbal_msg.twist.linear.x = 0;
-    empty_gimbal_msg.twist.linear.y = 0;
-    empty_gimbal_msg.twist.linear.z = 0;
-    empty_gimbal_msg.twist.angular.x = 0;
-    empty_gimbal_msg.twist.angular.y = 0;
-    empty_gimbal_msg.twist.angular.z = 0;
+    geometry_msgs::msg::TwistStamped empty_gimbal_msg{};
     received_gimbal_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_gimbal_msg));
     // initialize yaw diff subscriber
     yaw_position_sub_ = get_node()->create_subscription<std_msgs::msg::Float64>(
@@ -178,14 +143,13 @@ controller_interface::CallbackReturn OmnidirectionalController::on_configure(con
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn OmnidirectionalController::on_activate(const rclcpp_lifecycle::State & previous_state) {
+controller_interface::CallbackReturn ChassisController::on_activate(const rclcpp_lifecycle::State & previous_state) {
     is_halted_ = false;
     subscriber_is_active_ = true;
-    RCLCPP_DEBUG(get_node()->get_logger(), "Subscriber and publisher are now active.");
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn OmnidirectionalController::on_deactivate(const rclcpp_lifecycle::State & previous_state) {
+controller_interface::CallbackReturn ChassisController::on_deactivate(const rclcpp_lifecycle::State & previous_state) {
     subscriber_is_active_ = false;
     if (!is_halted_) {
         halt();
@@ -194,14 +158,12 @@ controller_interface::CallbackReturn OmnidirectionalController::on_deactivate(co
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn OmnidirectionalController::on_cleanup(const rclcpp_lifecycle::State& previous_state) {
-    if (!reset()) {
-        return controller_interface::CallbackReturn::ERROR;
-    }
+controller_interface::CallbackReturn ChassisController::on_cleanup(const rclcpp_lifecycle::State& previous_state) {
+
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type OmnidirectionalController::update(const rclcpp::Time &time, const rclcpp::Duration &period) {
+controller_interface::return_type ChassisController::update(const rclcpp::Time &time, const rclcpp::Duration &period) {
     if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
         if (!is_halted_) {
             halt();
@@ -209,15 +171,12 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         }
         return controller_interface::return_type::OK;
     }
-    // update params if they have changed
+    /// Update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
-        motor_number_ = static_cast<int>(params_.motor_names.size());
-        state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
-        command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
-        RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
-    // check if command message if nullptr
+    /// Check if command message is null or time out
+    // If is null
     std::shared_ptr<geometry_msgs::msg::TwistStamped> last_command_msg;
     std::shared_ptr<std_msgs::msg::Float64> last_yaw_diff_msg;
     received_yaw_diff_ptr_.get(last_yaw_diff_msg);
@@ -226,6 +185,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         RCLCPP_ERROR_ONCE(logger_, "command message or yaw diff received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
+    // If is timeout
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
@@ -235,9 +195,7 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         last_command_msg->twist.angular.x = 0.0;
         last_command_msg->twist.angular.y = 0.0;
         last_command_msg->twist.angular.z = 0.0;
-        return controller_interface::return_type::OK;
     }
-
     try {
         if (previous_publish_timestamp_ + publish_period_ < time) {
             previous_publish_timestamp_ += publish_period_;
@@ -248,9 +206,9 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
         previous_publish_timestamp_ = time;
         should_publish_ = true;
     }
-    // get motor measured
+    /// Get the current state of the chassis
     math_utilities::MotorPacket::get_moto_measure(state_interfaces_, cmd_map_);
-    // publish gimbal states
+    /// Publish chassis states
     if (should_publish_) {
         if (realtime_gimbal_state_pub_->trylock()) {
             auto & state_msg = realtime_gimbal_state_pub_->msg_;
@@ -261,17 +219,12 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
             realtime_gimbal_state_pub_->unlockAndPublish();
         }
     }
-    // omnidirectional wheels solve
-    velocity_solver_.solve(*last_command_msg, last_yaw_diff_msg->data);
-    // front_left_v_, front_right_v_, back_left_v_, back_right_v_
-    velocity_solver_.get_target_values(wheel_velocities_[0], wheel_velocities_[1], wheel_velocities_[2], wheel_velocities_[3]);
-    // set motor speed
-    for (int i = 0; i < motor_number_; i++) {
-        auto motor = cmd_map_.find(params_.motor_names[i]);
-        motor->second.value_ = wheel_velocities_[i];
-        RCLCPP_DEBUG(logger_, "%s: %f", params_.motor_names[i].c_str(), wheel_velocities_[i]);
-    }
-    // convert into command_interfaces
+    /// Chassis solver
+    // solve geometry relation
+    chassis_solver_->solve_geometry(*last_command_msg, last_yaw_diff_msg->data);
+    // get target value
+    chassis_solver_->get_target_values(cmd_map_);
+    /// Send target value
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
         if (motor_cmd != cmd_map_.end()) {
@@ -291,29 +244,20 @@ controller_interface::return_type OmnidirectionalController::update(const rclcpp
     return controller_interface::return_type::OK;
 }
 
-bool OmnidirectionalController::export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg) {
+bool ChassisController::export_state_interfaces(helios_control_interfaces::msg::MotorStates& state_msg) {
     state_msg.motor_states.resize(motor_number_, std::numeric_limits<helios_control_interfaces::msg::MotorState>::quiet_NaN());
     state_msg.header.frame_id = "chassis";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {
-        const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
+        const auto & motor_packet = cmd_map_.find(motor_names_[i]);
         if (motor_packet != cmd_map_.end()) {
             motor_packet->second.set_state_msg(state_msg.motor_states[i]);
         } else {
-            RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
+            RCLCPP_ERROR(logger_, "%s not found", motor_names_[i].c_str());
             return false;
         }
     }
     return true;
-}
-
-bool OmnidirectionalController::reset(){
-    
-    return true;
-}
-
-void OmnidirectionalController::halt() {
-
 }
 
 } // namespace helios_control
@@ -322,4 +266,4 @@ void OmnidirectionalController::halt() {
 #include "class_loader/register_macro.hpp"
 
 CLASS_LOADER_REGISTER_CLASS(
-  helios_control::OmnidirectionalController, controller_interface::ControllerInterface)
+  helios_control::ChassisController, controller_interface::ControllerInterface);

@@ -1,0 +1,78 @@
+chassis_controller:
+  max_linear_vel: {
+    type: double,
+    default_value: 1000,
+    description: "in rpm"
+  }
+  max_angular_vel: {
+    type: double,
+    default_value: 1000,
+    description: "in rpm"
+  }
+  max_total_vel: {
+    type: double,
+    default_value: 1000,
+    description: "in rpm"
+  }
+  chassis_type: {
+    type: string,
+    default_value: "omnidirectional",
+    description: "chassis type"
+  }
+  motor_command_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "motor_mode", "motor_value"],
+    description: "Names of command interfaces of the motors",
+  }
+  motor_state_interfaces: {
+    type: string_array,
+    default_value: ["can_id", "motor_type", "motor_id", "total_angle", "velocity", "current", "temperature"],
+    description: "Names of state interfaces of the motors",
+  }
+  motor_names: 
+    omnidirectional: {
+      type: string_array,
+      default_value: ["front_left", "front_right", "back_left", "back_right"],
+      description: "Names of the motors",
+    }
+    mecanum: {
+      type: string_array,
+      default_value: ["front_left", "front_right", "back_left", "back_right"],
+      description: "Names of the motors",
+    }
+  motor_commands:
+    omnidirectional: {
+      type: double_array,
+      default_value: 
+      [ #can_id motor_type motor_id motor_mode motor_value 
+        1, 0x200, 2, 1, 0, #1
+        1, 0x200, 1, 1, 0, #2
+        1, 0x200, 3, 1, 0, #3
+        1, 0x200, 4, 1, 0, #4
+      ],
+    }
+    mecanum: {
+      type: double_array,
+      default_value: 
+      [ #can_id motor_type motor_id motor_mode motor_value 
+        1, 0x200, 2, 1, 0, #1
+        1, 0x200, 1, 1, 0, #2
+        1, 0x200, 3, 1, 0, #3
+        1, 0x200, 4, 1, 0, #4
+      ],
+    }
+  publish_rate: {
+    type: double,
+    default_value: 1000,
+    description: "Publish rate of states the controller got",
+  }
+  cmd_timeout: {
+    type: int,
+    default_value: 200,   #ms
+    description: "the time interval between two commands",
+  }
+  update_rate: {
+    type: int,
+    default_value: 1000, #rate
+    description: "the update rate of gimbal controller",
+  }

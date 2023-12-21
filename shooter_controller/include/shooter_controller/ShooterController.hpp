@@ -40,13 +40,6 @@
 // https://github.com/PickNikRobotics/generate_parameter_library
 #include "shooter_controller_parameters.hpp"
 
-#define SHOOTER_STOP 0
-#define SHOOTER_HIGH_VELOCITY 1
-
-#define DIAL_STOP 0
-#define DIAL_CLOCKWISE 1
-#define DIAL_COUNT_CLOCKWISE 2
-
 namespace helios_control {
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "/shooter_cmd";
@@ -119,7 +112,8 @@ protected:
     std::map<std::string, math_utilities::MotorPacket> cmd_map_;
 
     std::shared_ptr<Shooter> shooter_;
-
+    double last_cmd_time_;
+    double time_diff_ = 0;
         
     /**
      * @brief Convert the current state of the chassis from state_interfaces to a ROS message

@@ -57,8 +57,8 @@ public:
     ~Shooter();
 
     void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
-                                sensor_interfaces::msg::PowerHeatData power_heat_data,
-                                rclcpp::Time now);
+                                    sensor_interfaces::msg::PowerHeatData power_heat_data,
+                                    double time_gap);
 
     void update_moto_state(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
                             std::vector<hardware_interface::LoanedStateInterface>& state_interfaces);
@@ -110,10 +110,8 @@ private:
     bool dial_up_init_flag;
     bool dial_down_init_flag;
     double res_heat_;
-    double starting_time_;
 
     ShooterState last_state_;
-    double last_shooter_cmd_time_;
 
     rclcpp::Logger logger_ = rclcpp::get_logger("Shooter");
 };

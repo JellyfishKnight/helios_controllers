@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22.0)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project(omnidirectional_controller)
+project(chassis_controller)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
@@ -13,12 +13,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake_auto REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
 
 ament_auto_find_build_dependencies()
 
 generate_parameter_library(
-  omnidirectional_controller_parameters # cmake target name for the parameter library
-  src/omnidirectional_controller_parameters.yaml # path to input yaml file
+  chassis_controller_parameters # cmake target name for the parameter library
+  src/chassis_controller_parameters.yaml # path to input yaml file
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
@@ -32,14 +33,15 @@ target_include_directories(
 
 target_link_libraries(
   ${PROJECT_NAME}
-  omnidirectional_controller_parameters
+  chassis_controller_parameters
+  Eigen3::Eigen
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(${PROJECT_NAME} PRIVATE "OMNIDIRECTIONAL_CONTROLLER_BUILDING_DLL")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "GM6020_CONTROLLER_BUILDING_DLL")
 
-pluginlib_export_plugin_description_file(controller_interface omnidirectional_controller_plugin.xml)
+pluginlib_export_plugin_description_file(controller_interface chassis_controller_plugin.xml)
 
 if(BUILD_TESTING) 
   find_package(ament_lint_auto REQUIRED)

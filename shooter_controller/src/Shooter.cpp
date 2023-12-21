@@ -37,25 +37,23 @@ void Shooter::update_moto_state(std::map<std::string, math_utilities::MotorPacke
 
 void Shooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
                                     sensor_interfaces::msg::PowerHeatData power_heat_data,
-                                    rclcpp::Time now) {
-    // Update time source
-    double time_diff = now.seconds() - last_cmd_stamp_.seconds();
-    last_cmd_stamp_ = now;
+                                    double time_gap) {
     // Check if we can start dial
-    if (time_diff > params_.shooter_cmd_expire_time ) {//|| judge_heat(power_heat_data, time_diff)) {
-        if (last_state_ == DIAL_RUNNING) {
-            if (is_dial_runnning()) {
-                stop_dial();
-            }
-        } else if (last_state_ == DIAL_LOCKED) {
-            last_state_ = SHOOTER_RUNNING;
-        } else if (last_state_ == SHOOTER_LOCKED) {
-            start_shooter(shooter_cmd);
-        } else if (last_state_ == UNDEFINED) {
-            last_state_ = SHOOTER_LOCKED;
-        }
-        return ;
-    }
+    ///TODO: lack of referee system, not judging heat now
+    // if (!judge_heat(power_heat_data, time_gap)) {
+    //     if (last_state_ == DIAL_RUNNING) {
+    //         if (is_dial_runnning()) {
+    //             stop_dial();
+    //         }
+    //     } else if (last_state_ == DIAL_LOCKED) {
+    //         last_state_ = SHOOTER_RUNNING;
+    //     } else if (last_state_ == SHOOTER_LOCKED) {
+    //         start_shooter(shooter_cmd);
+    //     } else if (last_state_ == UNDEFINED) {
+    //         last_state_ = SHOOTER_LOCKED;
+    //     }
+    //     return ;
+    // }
     // Update state machine
     // We must strictly limit shooters and dials
     // So we should judge their state every time
