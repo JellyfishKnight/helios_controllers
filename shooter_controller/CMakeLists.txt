@@ -22,7 +22,7 @@ generate_parameter_library(
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
-  DIRECTORY src src/chassis
+  DIRECTORY src src/shooter
 )
 
 target_include_directories(

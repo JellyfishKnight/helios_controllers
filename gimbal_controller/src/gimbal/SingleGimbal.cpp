@@ -63,9 +63,9 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
     }
     // Update gimbal command
     if (last_state_ == CRUISE && gimbal_cmd.gimbal_mode == CRUISE) {
-        do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
+        do_cruise(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value, chassis_rotation_vel);
     } else if (last_state_ == AUTOAIM && gimbal_cmd.gimbal_mode == AUTOAIM) {
-        do_autoaim(gimbal_cmd.yaw, gimbal_cmd.pitch);
+        do_autoaim(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value);
     }
 }
 
@@ -80,7 +80,7 @@ void SingleGimbal::update_motors(const std::vector<hardware_interface::LoanedSta
 void SingleGimbal::do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel) {
     // Auto turn to cruise mode to prevent serious damage
     RCLCPP_ERROR(logger_, "Gimbal is in undefined state");
-    do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
+    do_cruise(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value, chassis_rotation_vel);
     return;
 }
 

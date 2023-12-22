@@ -162,8 +162,8 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
                 // Convert rpm to velocity
-                msg->cruise_yaw_vel = msg->cruise_yaw_vel / 60 * 8192 / 1000;
-                msg->cruise_pitch_vel = msg->cruise_pitch_vel / 60 * 8192 / 1000;
+                msg->yaw_value = msg->yaw_value / 60 * 8192 / 1000;
+                msg->pitch_value = msg->pitch_value / 60 * 8192 / 1000;
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
@@ -237,8 +237,8 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
-        last_command_msg->pitch = 0;
-        last_command_msg->yaw = 0;
+        last_command_msg->pitch_value = 0;
+        last_command_msg->yaw_value = 0;
         return controller_interface::return_type::OK;
     }
     try {
