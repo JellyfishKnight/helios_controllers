@@ -31,9 +31,6 @@ namespace helios_control {
 #define FIRE 1
 #define HOLD 0
 
-#define UP_DIAL_BLOCKED 1
-#define DOWN_DIAL_BLOCKED 2
-
 typedef enum {
     STOP = 0,
     LOW = 1,

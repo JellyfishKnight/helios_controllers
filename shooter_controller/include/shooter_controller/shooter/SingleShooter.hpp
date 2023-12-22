@@ -48,7 +48,7 @@ private:
 
     bool check_dial_blocked();
 
-    void solve_block_mode(int mode);
+    void solve_block_mode();
 
     shooter_controller::Params params_;
 
@@ -62,6 +62,17 @@ private:
     math_utilities::MotorPacket* shooter_up_moto_ptr_;
     math_utilities::MotorPacket* shooter_down_moto_ptr_;
     math_utilities::MotorPacket* dial_moto_ptr_;
+
+    // solve block utilities
+    bool is_blocked_;
+    int dial_block_cnt_ = 0;
+    int solve_block_cnt = 0;
+
+    // heat data
+    double dial_init_heat_;
+    double dial_now_heat_;
+    bool dial_init_flag_;
+    double res_heat_;
 
     rclcpp::Logger logger_ = rclcpp::get_logger("SingleShooter");
 };

@@ -4,11 +4,17 @@ shooter_controller:
     default_value: 6,
     description: "Number of motors",
   }
-  motor_names: {
-    type: string_array,
-    default_value: ["shooter_left_up", "shooter_left_down", "shooter_right_up", "shooter_right_down", "dial_up", "dial_down"],
-    description: "Link names of the motors",
-  }
+  motor_names: 
+    abreast_double_shooter: {
+      type: string_array,
+      default_value: ["shooter_left_up", "shooter_left_down", "shooter_right_up", "shooter_right_down", "dial_up", "dial_down"],
+      description: "Link names of the motors",
+    }
+    single_shooter: {
+      type: string_array,
+      default_value: ["shooter_up", "shooter_down", "dial"],
+      description: "Link names of the motors",
+    }
   motor_command_interfaces: {
     type: string_array,
     default_value: ["can_id", "motor_type", "motor_id", "motor_mode", "motor_value"],
@@ -34,18 +40,28 @@ shooter_controller:
     default_value: 1000, #rate
     description: "the update rate of gimbal controller",
   }
-  motor_commands: {
-    type: double_array,
-    default_value: 
-    [ #can_id motor_types motor_id motor_mode motor_value 
-      2, 0x200, 2, 1, 0.0, #1
-      2, 0x200, 4, 1, 0.0, #2
-      2, 0x200, 1, 1, 0.0, #3
-      2, 0x200, 3, 1, 0.0, #4
-      2, 0x1ff, 3, 1, 0.0, #6
-      1, 0x1ff, 1, 1, 0.0, #5
-    ],
-  }
+  motor_commands: 
+    abreast_double_shooter: {
+      type: double_array,
+      default_value: 
+      [ #can_id motor_types motor_id motor_mode motor_value 
+        2, 0x200, 2, 1, 0.0, #1
+        2, 0x200, 4, 1, 0.0, #2
+        2, 0x200, 1, 1, 0.0, #3
+        2, 0x200, 3, 1, 0.0, #4
+        2, 0x1ff, 3, 1, 0.0, #6
+        1, 0x1ff, 1, 1, 0.0, #5
+      ],
+    }
+    single_shooter: {
+      type: double_array,
+      default_value: 
+      [ #can_id motor_types motor_id motor_mode motor_value 
+        2, 0x200, 2, 1, 0.0, 
+        2, 0x200, 4, 1, 0.0,
+        2, 0x1ff, 3, 1, 0.0, 
+      ]
+    }
   heat_limit: {
     type: double,
     default_value: 10,
