@@ -29,38 +29,42 @@ controller_interface::CallbackReturn ShooterController::on_init() {
         RCLCPP_ERROR(logger_, "on_init: %s", e.what());
         return controller_interface::CallbackReturn::ERROR;
     }
-    motor_number_ = static_cast<int>(params_.motor_names.size());
     state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
     command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
+    if (params_.shooter_mode == "single_shooter") {
+        motor_number_ = static_cast<int>(params_.motor_names.single_shooter.size());
+        motor_names_ = std::move(params_.motor_names.single_shooter);
+        motor_commands_ = std::move(params_.motor_commands.single_shooter);
+        shooter_ = std::make_shared<SingleShooter>(params_);
+    } else if (params_.shooter_mode == "abreast_double_shooter") {
+        motor_number_ = static_cast<int>(params_.motor_names.abreast_double_shooter.size());
+        motor_names_ = std::move(params_.motor_names.abreast_double_shooter);
+        motor_commands_ = std::move(params_.motor_commands.abreast_double_shooter);
+        shooter_ = std::make_shared<AbreastDoubleShooter>(params_);
+    }
+    ///TODO: Complete more types of shooter
+    // else if () {}
+
     // init params
     for (int i = 0; i < motor_number_; i++) {
         math_utilities::MotorPacket motor_packet(
-            params_.motor_names[i]
+            motor_names_[i]
         );
-        motor_packet.can_id_ = params_.motor_commands[i * command_interface_number_];
-        motor_packet.motor_type_ = static_cast<int>(params_.motor_commands[i * command_interface_number_ + 1]);
-        motor_packet.motor_id_ = params_.motor_commands[i * command_interface_number_ + 2];
-        motor_packet.motor_mode_ = static_cast<uint8_t>(params_.motor_commands[i * command_interface_number_ + 3]);
-        motor_packet.value_ = params_.motor_commands[i * command_interface_number_ + 4];
+        motor_packet.can_id_ = motor_commands_[i * command_interface_number_];
+        motor_packet.motor_type_ = static_cast<int>(motor_commands_[i * command_interface_number_ + 1]);
+        motor_packet.motor_id_ = motor_commands_[i * command_interface_number_ + 2];
+        motor_packet.motor_mode_ = static_cast<uint8_t>(motor_commands_[i * command_interface_number_ + 3]);
+        motor_packet.value_ = motor_commands_[i * command_interface_number_ + 4];
 
         // init map
-        cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(params_.motor_names[i], motor_packet));
+        cmd_map_.emplace(std::pair<std::string, math_utilities::MotorPacket>(motor_names_[i], motor_packet));
     }
-    if (params_.motor_names.size() != static_cast<unsigned long>(motor_number_)) {
-        RCLCPP_ERROR(logger_, "The number of motors is not %d", motor_number_);
-        return controller_interface::CallbackReturn::ERROR;
-    }
-    if (params_.dial.dial_velocity_level.size() != 10) {
-        RCLCPP_ERROR(logger_, "The number of velocity level is not 10");
-        return controller_interface::CallbackReturn::ERROR;
-    }
-    shooter_ = std::make_shared<Shooter>(params_);
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::InterfaceConfiguration ShooterController::command_interface_configuration() const {
     std::vector<std::string> conf_names;
-    for (const auto& joint_name : params_.motor_names) {
+    for (const auto& joint_name : motor_names_) {
         for (auto & command_name : params_.motor_command_interfaces) {
             conf_names.push_back(joint_name + "/" + command_name);
         }
@@ -71,7 +75,7 @@ controller_interface::InterfaceConfiguration ShooterController::command_interfac
 
 controller_interface::InterfaceConfiguration ShooterController::state_interface_configuration() const {
     std::vector<std::string> conf_names;
-    for (const auto & joint_name : params_.motor_names) {
+    for (const auto & joint_name : motor_names_) {
         for (const auto & state_name : params_.motor_state_interfaces) {
             conf_names.push_back(joint_name + "/" + state_name);
         }
@@ -84,7 +88,6 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
     // update parameters if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
-        motor_number_ = static_cast<int>(params_.motor_names.size());
         shooter_->update_params(params_);
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
@@ -178,9 +181,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     // update params if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
-        motor_number_ = static_cast<int>(params_.motor_names.size());
-        state_interface_number_ = static_cast<int>(params_.motor_state_interfaces.size());
-        command_interface_number_ = static_cast<int>(params_.motor_command_interfaces.size());
         shooter_->update_params(params_);
         RCLCPP_DEBUG(logger_, "Parameters were updated");
     }
@@ -188,10 +188,11 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     received_shooter_cmd_ptr_.get(last_command_msg);
     received_heat_ptr_.get(last_heat_msg);
     ///TODO: no referee system for now
-    last_heat_msg = std::make_shared<sensor_interfaces::msg::PowerHeatData>();
-    last_heat_msg->shooter_id1_17mm_residual_cooling_heat = 10000;
-    if (last_command_msg == nullptr) {
-    // if (last_command_msg == nullptr || last_heat_msg == nullptr) {
+    // if (last_heat_msg == nullptr) {
+    //     RCLCPP_ERROR(logger_, "heat message received was a nullptr");
+    //     return controller_interface::return_type::ERROR;
+    // }
+    if (last_command_msg == nullptr ) {
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
@@ -217,14 +218,14 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
         }
     }
     // Update motor states
-    shooter_->update_moto_state(cmd_map_, state_interfaces_);
+    shooter_->update_motors(state_interfaces_, cmd_map_);
     // Check time stamp
     time_diff_ = this->get_node()->now().seconds() - last_cmd_time_;
     if (time_diff_ > params_.shooter_cmd_expire_time) {
         last_command_msg->fire_flag = HOLD;
     }
     // set shooter command
-    shooter_->update_shooter_cmd(*last_command_msg, *last_heat_msg, time_diff_);
+    shooter_->update_shooter_cmd(*last_command_msg, *last_heat_msg);
     // convert into command_interfaces
     for (std::size_t i = 0; i < command_interfaces_.size(); i++) {
         auto motor_cmd = cmd_map_.find(command_interfaces_[i].get_prefix_name());
@@ -250,11 +251,11 @@ bool ShooterController::export_state_interfaces(helios_control_interfaces::msg::
     state_msg.header.frame_id = "shooter";
     state_msg.header.stamp = this->get_node()->now();
     for (int i = 0; i < motor_number_; i++) {
-        const auto & motor_packet = cmd_map_.find(params_.motor_names[i]);
+        const auto & motor_packet = cmd_map_.find(motor_names_[i]);
         if (motor_packet != cmd_map_.end()) {
             motor_packet->second.set_state_msg(state_msg.motor_states[i]);
         } else {
-            RCLCPP_ERROR(logger_, "%s not found", params_.motor_names[i].c_str());
+            RCLCPP_ERROR(logger_, "%s not found", motor_names_[i].c_str());
             return false;
         }
     }

@@ -1,8 +1,8 @@
 shooter_controller:
-  motor_number: {
-    type: int,
-    default_value: 6,
-    description: "Number of motors",
+  shooter_mode: {
+    type: string,
+    default_value: "abreast_double_shooter",
+    description: "Shooter mode, can be 'abreast_double_shooter', 'single shooter' and so on",
   }
   motor_names: 
     abreast_double_shooter: {

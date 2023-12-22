@@ -54,6 +54,8 @@ private:
 
     const std::string shooter_name_;
 
+    rclcpp::Time last_cmd_time_;
+
     ShooterState last_state_;
     ShooterSpeed last_speed_;
     int last_shooter_speed_ = 0;

@@ -78,10 +78,11 @@ public:
     SHOOTER_CONTROLLER_PUBLIC
     controller_interface::return_type update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 protected:
-    bool is_inited_;
     int motor_number_;
     int state_interface_number_;
     int command_interface_number_;
+    std::vector<std::string> motor_names_;
+    std::vector<double> motor_commands_;
     // cmd subscriber
     std::shared_ptr<realtime_tools::RealtimePublisher<helios_control_interfaces::msg::MotorStates>> realtime_shooter_state_pub_;
     rclcpp::Publisher<helios_control_interfaces::msg::MotorStates>::SharedPtr state_pub_;
@@ -110,6 +111,7 @@ protected:
     std::map<std::string, math_utilities::MotorPacket> cmd_map_;
 
     std::shared_ptr<BaseShooter> shooter_;
+
     double last_cmd_time_;
     double time_diff_ = 0;
         
@@ -124,7 +126,7 @@ protected:
     bool reset();
     void halt();
 
-    rclcpp::Logger logger_ = rclcpp::get_logger("Shooter_Controller");
+    rclcpp::Logger logger_ = rclcpp::get_logger("ShooterController");
 };
 
 

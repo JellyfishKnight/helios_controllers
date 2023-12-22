@@ -46,52 +46,14 @@ public:
     void update_params(const shooter_controller::Params& params) override;
 
 private:
-    void start_shooter(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd);
-
-    bool is_shooter_runnning();
-
-    void stop_shooter();
-
-    void start_dial(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd);
-
-    bool is_dial_runnning();
-
-    void stop_dial();
-
-    bool judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data, double time_diff);
-
-    bool check_dial_blocked();
-
-    void solve_block_mode(int mode);
-
 
     shooter_controller::Params params_;
-    rclcpp::Time last_cmd_stamp_;
 
-    // motors
-    math_utilities::MotorPacket* left_up_shooter_;
-    math_utilities::MotorPacket* left_down_shooter_;
-    math_utilities::MotorPacket* right_up_shooter_;
-    math_utilities::MotorPacket* right_down_shooter_;
-    math_utilities::MotorPacket* dial_up_;
-    math_utilities::MotorPacket* dial_down_;
+    // shooters_
+    std::map<std::string, SingleShooter> shooters_;
 
-    bool is_blocked_;
-    int up_dial_block_cnt_ = 0;
-    int down_dial_block_cnt_ = 0;
-    int solve_up_block_cnt = 0;
-    int solve_down_block_cnt = 0;
-
-    // heat data
-    double dial_up_init_heat_;
-    double dial_down_init_heat_;
-    double dial_up_now_heat_;
-    double dial_down_now_heat_;
-    bool dial_up_init_flag;
-    bool dial_down_init_flag;
-    double res_heat_;
-
-    ShooterState last_state_;
+    // shooter choose flag
+    bool is_left_shooter_ = true;
 
     rclcpp::Logger logger_ = rclcpp::get_logger("Shooter");
 };

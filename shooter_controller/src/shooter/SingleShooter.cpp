@@ -17,6 +17,7 @@ namespace helios_control {
 SingleShooter::SingleShooter(const shooter_controller::Params& params, const std::string& shooter_name) :
     shooter_name_(std::move(shooter_name)) {
     params_ = params;
+    last_cmd_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
 }
 
 void SingleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
@@ -37,7 +38,6 @@ void SingleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCm
     //     }
     //     return ;
     // }
-
     // Update state machine
     // We must strictly limit shooters and dials
     // So we should judge their state every time
