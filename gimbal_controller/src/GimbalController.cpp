@@ -10,17 +10,6 @@
  *
  */
 #include "GimbalController.hpp"
-#include <angles/angles.h>
-#include <cmath>
-#include <cstddef>
-#include <iterator>
-#include <math_utilities/MotorPacket.hpp>
-#include <memory>
-#include <rclcpp/logging.hpp>
-#include <rclcpp/qos.hpp>
-#include <string>
-#include <utility>
-#include <vector>
 
 namespace helios_control {
 
@@ -182,7 +171,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         publish_rate_ = params_.publish_rate;
         publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
         // create gimbal
-        gimbal_ = std::make_shared<Gimbal>(params_);
+        gimbal_ = std::make_shared<SingleGimbal>(params_);
         return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -274,9 +263,9 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         }
     }
     // Update motor value
-    gimbal_->update_moto(cmd_map_, state_interfaces_);
+    gimbal_->update_motors(state_interfaces_, cmd_map_);
     // Set gimbal commands
-    gimbal_->set_gimbal_cmd(*last_command_msg, last_imu_msg_, this->get_node()->now(), chassis_msg->twist.angular.z);
+    gimbal_->set_gimbal_cmd(*last_command_msg, *imu_msg, chassis_msg->twist.angular.z);
     // get diff yaw from imu to chassis
     double diff_yaw_from_imu_to_chassis = gimbal_->caculate_diff_angle_from_imu_to_chassis();
     // publish tf2 transform from imu to chassis

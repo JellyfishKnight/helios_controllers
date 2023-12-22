@@ -22,8 +22,8 @@ generate_parameter_library(
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
-  DIRECTORY src
-)
+  DIRECTORY src src/gimbal
+  )
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC

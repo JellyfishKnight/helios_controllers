@@ -8,32 +8,24 @@
  * ██   ██ ██      ██      ██ ██    ██      ██
  * ██   ██ ███████ ███████ ██  ██████  ███████
  */
-#include "Gimbal.hpp"
-#include <cmath>
-#include <rclcpp/logging.hpp>
-#include <rclcpp/time.hpp>
+#include "gimbal/SingleGimbal.hpp"
 
 namespace helios_control {
 
-Gimbal::Gimbal(const gimbal_controller::Params& params) : 
-    last_state_(CRUISE), params_(params){
+SingleGimbal::SingleGimbal(const gimbal_controller::Params& params) : 
+    last_state_(CRUISE), params_(params) {
     imu_round_cnt_ = 0;
     accel_cnt_ = 0;
     pitch_vel_flag_ = 1;
 }
 
-Gimbal::~Gimbal() {
+SingleGimbal::~SingleGimbal() {
 
 }
 
-void Gimbal::update_params(const gimbal_controller::Params& params) {
-    params_ = params;
-}
-
-void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd,
-                        const sensor_interfaces::msg::ImuEuler& imu_euler,
-                        rclcpp::Time now,
-                        double chassis_rotation_vel) {
+void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd,
+                            const sensor_interfaces::msg::ImuEuler& imu_euler,
+                            double chassis_rotation_vel) {
     // Update imu info
     double yaw_diff = imu_euler.yaw - last_imu_yaw_;
     if (yaw_diff < -180) {
@@ -45,35 +37,21 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
     imu_total_yaw_ = imu_euler.yaw + imu_round_cnt_ * 360 - imu_euler.init_yaw;
     last_imu_yaw_ = imu_euler.yaw;
     imu_pitch_= imu_euler.pitch;
-    // Update time source
-    if (gimbal_cmd.gimbal_mode == AUTOAIM) {
-        last_autoaim_msg_time_ = now;
-    }
+    rclcpp::Time now = gimbal_cmd.header.stamp;
     // Update state machine
     if (last_state_ == AUTOAIM) {
-        if (gimbal_cmd.gimbal_mode == DEBUG) {
-            last_state_ = DEBUG;
-        } else if (gimbal_cmd.gimbal_mode == CRUISE) {
+        if (gimbal_cmd.gimbal_mode == CRUISE) {
             if (now.seconds() - last_autoaim_msg_time_.seconds() > params_.autoaim_expire_time) {
                 last_state_ = CRUISE;
                 RCLCPP_INFO(logger_, "expired");
             } else {
+
             }
         } else {
             last_state_ = AUTOAIM;
         }
     } else if (last_state_ == CRUISE) {
-        if (gimbal_cmd.gimbal_mode == DEBUG) {
-            last_state_ = DEBUG;
-        } else if (gimbal_cmd.gimbal_mode == CRUISE) {
-            last_state_ = CRUISE;
-        } else {
-            last_state_ = AUTOAIM;
-        }
-    } else if (last_state_ == DEBUG) {
-        if (gimbal_cmd.gimbal_mode == DEBUG) {
-            last_state_ = DEBUG;
-        } else if (gimbal_cmd.gimbal_mode == CRUISE) {
+        if (gimbal_cmd.gimbal_mode == CRUISE) {
             last_state_ = CRUISE;
         } else {
             last_state_ = AUTOAIM;
@@ -84,41 +62,30 @@ void Gimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCmd& gim
        last_state_ = UNDEFINED; 
     }
     // Update gimbal command
-    if (last_state_ == DEBUG) {
-        do_debug(gimbal_cmd, chassis_rotation_vel);
-    } else if (last_state_ == CRUISE && gimbal_cmd.gimbal_mode == CRUISE) {
+    if (last_state_ == CRUISE && gimbal_cmd.gimbal_mode == CRUISE) {
         do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
     } else if (last_state_ == AUTOAIM && gimbal_cmd.gimbal_mode == AUTOAIM) {
         do_autoaim(gimbal_cmd.yaw, gimbal_cmd.pitch);
     }
 }
 
-void Gimbal::update_moto(std::map<std::string, math_utilities::MotorPacket>& cmd_map, 
-                    const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces) {
+
+void SingleGimbal::update_motors(const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces,
+                    std::map<std::string, math_utilities::MotorPacket>& cmd_map) {
     math_utilities::MotorPacket::get_moto_measure(state_interfaces, cmd_map);
     yaw_moto_ptr_ = &cmd_map.find("yaw")->second;
     pitch_moto_ptr_ = &cmd_map.find("pitch")->second;
 }
 
-void Gimbal::do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel) {
+void SingleGimbal::do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel) {
     // Auto turn to cruise mode to prevent serious damage
     RCLCPP_ERROR(logger_, "Gimbal is in undefined state");
     do_cruise(gimbal_cmd.cruise_yaw_vel, gimbal_cmd.cruise_pitch_vel, chassis_rotation_vel);
     return;
 }
 
-void Gimbal::do_debug(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel) {
-    if (gimbal_cmd.debug_mode == DEBUG_POSITION) {
-        do_autoaim(gimbal_cmd.yaw, gimbal_cmd.pitch);
-    } else if (gimbal_cmd.debug_mode == DEBUG_VELOCITY) {
-        do_cruise(gimbal_cmd.yaw, gimbal_cmd.pitch, chassis_rotation_vel);
-    } else {
-        RCLCPP_ERROR(logger_, "Invalid debug mode");
-        do_undefined(gimbal_cmd, chassis_rotation_vel);
-    } 
-}
 
-void Gimbal::do_cruise(double yaw_vel, double pitch_vel, double chassis_rotation_vel) {
+void SingleGimbal::do_cruise(double yaw_vel, double pitch_vel, double chassis_rotation_vel) {
     // Set yaw motor velocity
     // Limit yaw's motor velocity
     if (std::abs(yaw_vel) > params_.yaw_vel_limit) {
@@ -143,7 +110,7 @@ void Gimbal::do_cruise(double yaw_vel, double pitch_vel, double chassis_rotation
     pitch_moto_ptr_->motor_mode_ = 0x01;
 }
 
-void Gimbal::do_autoaim(double yaw_angle, double pitch_angle) {
+void SingleGimbal::do_autoaim(double yaw_angle, double pitch_angle) {
     // Set yaw motor angle
     // Convert absolute yaw and pitch into total angle
     double yaw_diff_from_i2c = angles::shortest_angular_distance(
@@ -172,7 +139,7 @@ void Gimbal::do_autoaim(double yaw_angle, double pitch_angle) {
 }
 
 
-double Gimbal::caculate_diff_angle_from_imu_to_chassis() {
+double SingleGimbal::caculate_diff_angle_from_imu_to_chassis() {
     return -(fmod(yaw_moto_ptr_->total_angle_ - 6380, 8192.0) / 8192) * 2 * M_PI
             - angles::from_degrees(fmod((imu_total_yaw_), 360.0));
 }

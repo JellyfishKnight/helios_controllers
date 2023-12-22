@@ -34,7 +34,8 @@
 
 #include "visibility_control.h"
 #include "math_utilities/MotorPacket.hpp"
-#include "Gimbal.hpp"
+#include "gimbal/BaseGimbal.hpp"
+#include "gimbal/SingleGimbal.hpp"
 
 #include <helios_control_interfaces/msg/detail/gimbal_cmd__struct.hpp>
 #include <map>
@@ -119,7 +120,7 @@ protected:
     // pid controllers
     std::map<std::string, math_utilities::MotorPacket> cmd_map_;
     // Gimbal
-    std::shared_ptr<Gimbal> gimbal_;
+    std::shared_ptr<BaseGimbal> gimbal_;
 
 
     std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_broadcaster_;
