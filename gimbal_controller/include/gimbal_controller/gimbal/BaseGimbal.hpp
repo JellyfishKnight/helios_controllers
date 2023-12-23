@@ -31,6 +31,7 @@ namespace helios_control {
 typedef enum {
     AUTOAIM = 0,
     CRUISE = 1,
+    ATTACK = 2,
     UNDEFINED = 2,
 } GimbalState;
 

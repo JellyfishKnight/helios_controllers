@@ -40,12 +40,12 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
     rclcpp::Time now = gimbal_cmd.header.stamp;
     // Update state machine
     if (last_state_ == AUTOAIM) {
-        if (gimbal_cmd.gimbal_mode == CRUISE) {
+        if (gimbal_cmd.gimbal_mode == CRUISE || gimbal_cmd.gimbal_mode == ATTACK) {
             if (now.seconds() - last_autoaim_msg_time_.seconds() > params_.autoaim_expire_time) {
                 last_state_ = CRUISE;
-                RCLCPP_INFO(logger_, "expired");
+                RCLCPP_INFO(logger_, "autoaim cmd expired");
             } else {
-
+                last_state_ = AUTOAIM;
             }
         } else {
             last_state_ = AUTOAIM;
@@ -53,8 +53,23 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
     } else if (last_state_ == CRUISE) {
         if (gimbal_cmd.gimbal_mode == CRUISE) {
             last_state_ = CRUISE;
-        } else {
+        } else if (gimbal_cmd.gimbal_mode == AUTOAIM) {
             last_state_ = AUTOAIM;
+        } else if (gimbal_cmd.gimbal_mode == ATTACK) {
+            last_state_ = ATTACK;
+        }
+    } else if (last_state_ == ATTACK) {
+        if (gimbal_cmd.gimbal_mode == AUTOAIM) {
+            last_state_ = AUTOAIM;
+        } else if (gimbal_cmd.gimbal_mode == CRUISE) {
+            if (now.seconds() - last_attack_msg_time_.seconds() > params_.autoaim_expire_time) {
+                last_state_ = CRUISE;
+                RCLCPP_INFO(logger_, "attack cmd expired");
+            } else {
+                last_state_ = ATTACK;
+            }
+        } else if (gimbal_cmd.gimbal_mode == ATTACK) {
+            last_state_ = ATTACK;
         }
     } else if (last_state_ == UNDEFINED) {
         last_state_ = static_cast<GimbalState>(gimbal_cmd.gimbal_mode);
@@ -64,8 +79,11 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
     // Update gimbal command
     if (last_state_ == CRUISE && gimbal_cmd.gimbal_mode == CRUISE) {
         do_cruise(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value, chassis_rotation_vel);
-    } else if (last_state_ == AUTOAIM && gimbal_cmd.gimbal_mode == AUTOAIM) {
+    } else if ((last_state_ == AUTOAIM && gimbal_cmd.gimbal_mode == AUTOAIM) ||
+                (last_state_ == ATTACK && gimbal_cmd.gimbal_mode == ATTACK)) {
         do_autoaim(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value);
+    } else {
+        do_undefined(gimbal_cmd, chassis_rotation_vel);
     }
 }
 

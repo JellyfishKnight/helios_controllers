@@ -61,6 +61,7 @@ private:
     math_utilities::MotorPacket* pitch_moto_ptr_;
 
     rclcpp::Time last_autoaim_msg_time_;
+    rclcpp::Time last_attack_msg_time_;
 
     gimbal_controller::Params params_;
     
