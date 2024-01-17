@@ -133,12 +133,13 @@ void SingleShooter::update_motors(const std::vector<hardware_interface::LoanedSt
 }
 
 void SingleShooter::start_shooter(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd) {
-    if (shooter_cmd.shooter_speed == LOW) {
-        shooter_up_moto_ptr_->value_ = -params_.shooter.low_velocity;
+    if (shooter_name_ == "left" || shooter_name_ == "single") {
+        shooter_up_moto_ptr_->value_ = shooter_cmd.shooter_speed == LOW ? -params_.shooter.low_velocity : -params_.shooter.high_velocity;
+        shooter_down_moto_ptr_->value_ = shooter_cmd.shooter_speed == LOW ? params_.shooter.low_velocity : params_.shooter.high_velocity;
         shooter_down_moto_ptr_->value_ = params_.shooter.low_velocity;
-    } else if (shooter_cmd.shooter_speed == HIGH) {
-        shooter_up_moto_ptr_->value_ = -params_.shooter.high_velocity;
-        shooter_down_moto_ptr_->value_ = params_.shooter.high_velocity;
+    } else if (shooter_name_ == "right") {
+        shooter_up_moto_ptr_->value_ = params_.shooter.high_velocity;
+        shooter_down_moto_ptr_->value_ = -params_.shooter.high_velocity;
     }
 }
 
@@ -158,7 +159,7 @@ void SingleShooter::stop_shooter() {
 }
 
 void SingleShooter::start_dial(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd) {
-
+    dial_moto_ptr_->value_ = params_.dial.dial_velocity_level[shooter_cmd.dial_vel];
 }
 
 bool SingleShooter::is_dial_runnning() {
@@ -215,11 +216,11 @@ bool SingleShooter::check_dial_blocked() {
 
 void SingleShooter::solve_block_mode() {
     solve_block_cnt++;
-    if (solve_block_cnt > 400) {
+    if (solve_block_cnt > 40) {
         is_blocked_ = false;
         solve_block_cnt = 0;
     }
-    dial_moto_ptr_->value_ = -100;
+    dial_moto_ptr_->value_ = -1000;
     dial_moto_ptr_->motor_mode_ = 0x01;
 }
 
