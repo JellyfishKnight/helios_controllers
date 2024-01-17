@@ -7,7 +7,7 @@ shooter_controller:
   motor_names: 
     abreast_double_shooter: {
       type: string_array,
-      default_value: ["shooter_left_up", "shooter_left_down", "shooter_right_up", "shooter_right_down", "dial_up", "dial_down"],
+      default_value: ["shooter_left_up", "shooter_left_down", "shooter_right_up", "shooter_right_down", "shooter_left_dial", "shooter_right_dial"],
       description: "Link names of the motors",
     }
     single_shooter: {

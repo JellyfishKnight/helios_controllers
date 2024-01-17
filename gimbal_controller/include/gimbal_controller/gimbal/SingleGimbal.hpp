@@ -38,8 +38,6 @@ public:
 
     double caculate_diff_angle_from_imu_to_chassis() override;
 
-    void get_yaw_and_pitch_value(const std::map<std::string, math_utilities::MotorPacket>& cmd_map) override;
-
     void update_params(const gimbal_controller::Params& params) override;
 
     void update_motors(const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces,

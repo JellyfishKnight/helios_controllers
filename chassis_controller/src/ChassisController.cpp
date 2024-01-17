@@ -260,6 +260,18 @@ bool ChassisController::export_state_interfaces(helios_control_interfaces::msg::
     return true;
 }
 
+bool ChassisController::reset() {
+
+    return true;
+}
+
+
+void ChassisController::halt() {
+
+}
+
+
+
 } // namespace helios_control
 
 // register controller class 

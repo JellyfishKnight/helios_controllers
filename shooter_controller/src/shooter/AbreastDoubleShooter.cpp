@@ -18,8 +18,9 @@ namespace helios_control {
 AbreastDoubleShooter::AbreastDoubleShooter(const shooter_controller::Params& params) {
     params_ = params;
     // construct shooters
-    shooters_.emplace("left", SingleShooter{params_, "left"});
-    shooters_.emplace("right", SingleShooter{params_, "right"});
+    // pls name with "shooter_" + "$name" to avoid conflict with the name in file xacro
+    shooters_.emplace("left", SingleShooter{params_, "shooter_left"});
+    shooters_.emplace("right", SingleShooter{params_, "shooter_right"});
 }
 
 void AbreastDoubleShooter::update_motors(const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces,

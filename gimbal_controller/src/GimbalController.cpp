@@ -10,6 +10,7 @@
  *
  */
 #include "GimbalController.hpp"
+#include "gimbal/BaseGimbal.hpp"
 
 namespace helios_control {
 
@@ -162,8 +163,10 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                     msg->header.stamp = get_node()->get_clock()->now();
                 }
                 // Convert rpm to velocity
-                msg->yaw_value = msg->yaw_value / 60 * 8192 / 1000;
-                msg->pitch_value = msg->pitch_value / 60 * 8192 / 1000;
+                if (msg->gimbal_mode == CRUISE) {
+                    msg->yaw_value = msg->yaw_value / 60 * 8192 / 1000;
+                    msg->pitch_value = msg->pitch_value / 60 * 8192 / 1000;
+                }
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
