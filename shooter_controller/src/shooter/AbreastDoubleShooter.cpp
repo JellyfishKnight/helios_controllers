@@ -37,12 +37,12 @@ void AbreastDoubleShooter::update_shooter_cmd(helios_control_interfaces::msg::Sh
     // Round robin mode
     if (is_left_shooter_) {
         shooters_.find("left")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
-        shooter_cmd.dial_vel = 0;
+        // shooter_cmd.dial_vel = 0;
         shooters_.find("right")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
         is_left_shooter_ = false;
     } else {
         shooters_.find("right")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
-        shooter_cmd.dial_vel = 0;
+        // shooter_cmd.dial_vel = 0;
         shooters_.find("left")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
         is_left_shooter_ = true;
     }

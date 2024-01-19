@@ -1,17 +1,17 @@
 chassis_controller:
   max_linear_vel: {
     type: double,
-    default_value: 1000,
+    default_value: 4000,
     description: "in rpm"
   }
   max_angular_vel: {
     type: double,
-    default_value: 1000,
+    default_value: 3000,
     description: "in rpm"
   }
   max_total_vel: {
     type: double,
-    default_value: 1000,
+    default_value: 4000,
     description: "in rpm"
   }
   chassis_type: {
