@@ -223,7 +223,6 @@ controller_interface::return_type ShooterController::update(const rclcpp::Time &
     time_diff_ = this->get_node()->now().seconds() - last_cmd_time_;
     // if (time_diff_ > params_.shooter_cmd_expire_time) {
     // RCLCPP_INFO(logger_, "fire flag %d", last_command_msg->fire_flag);
-    //     last_command_msg->fire_flag = HOLD;
     // }
     // set shooter command
     shooter_->update_shooter_cmd(*last_command_msg, *last_heat_msg);

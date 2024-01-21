@@ -75,12 +75,12 @@ shooter_controller:
   shooter: 
     high_velocity: {
       type: double,
-      default_value: 500,
+      default_value: 2000,
       description: "High velocity of shooter",
     }
     low_velocity: {
       type: double,
-      default_value: 250,
+      default_value: 1000,
       description: "Low velocity of shooter",
     }
   dial: 

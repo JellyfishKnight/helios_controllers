@@ -10,6 +10,8 @@
  *
  */
 #include "shooter/SingleShooter.hpp"
+#include "shooter/BaseShooter.hpp"
+#include <rclcpp/logging.hpp>
 
 
 namespace helios_control {
@@ -43,86 +45,25 @@ void SingleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCm
     // So we should judge their state every time
     
     if (shooter_cmd.shooter_speed == STOP) {
-        last_state_ = SHOOTER_LOCKED;
-    }
-    if (last_state_ == SHOOTER_LOCKED) {
-        // Dial is running, turn to undefined
-        if (is_dial_runnning()) {
-            last_state_ = UNDEFINED;
-        }else {
-            // We should automatically enter shooter running if there is not any limit
-            if (!is_shooter_runnning()) {
-                start_shooter(shooter_cmd); 
-            } else {
-                last_state_ = SHOOTER_RUNNING;
-            }
-        }
-    // This is a state to make sure dial is not running
-    } else if (last_state_ == SHOOTER_RUNNING) {
-        if (is_dial_runnning()) {
-            last_state_ = UNDEFINED;
-        } else {
-            // Shooter stoped, restart shooter
-            if (!is_shooter_runnning()) {
-                last_state_ = SHOOTER_LOCKED;
-            } else {
-                last_state_ = DIAL_LOCKED;
-            }
-        }
-    } else if (last_state_ == DIAL_LOCKED) {
-        if (!is_shooter_runnning()) {
-            // restart shooter
-            last_state_ = SHOOTER_LOCKED;
-        } else {
-            if (is_dial_runnning()) {
-                last_state_ = DIAL_RUNNING;
-            } else {
-                if (shooter_cmd.fire_flag == FIRE) {
-                    start_dial(shooter_cmd);
-                } else if (shooter_cmd.fire_flag == HOLD) {
-                    last_state_ = DIAL_LOCKED;
-                } else {
-                    last_state_ = UNDEFINED;
-                }
-            }
-        }
-    } else if (last_state_ == DIAL_RUNNING) {
-        if (!is_shooter_runnning()) {
-            // Stop both dial and shooter
-            last_state_ = UNDEFINED;
-        } else {
-            if (check_dial_blocked()) {
-                RCLCPP_INFO(logger_, "dial is blocked!");
-            } else if (is_dial_runnning()) {
-                if (shooter_cmd.fire_flag == HOLD) {
-                    stop_dial();
-                } else if (shooter_cmd.fire_flag == FIRE) {
-                    start_dial(shooter_cmd);
-                } else {
-                    last_state_ = UNDEFINED;
-                }
-            } else {
-                start_dial(shooter_cmd);
-            }
-        }
-    } else if (last_state_ == UNDEFINED) {
-        if (!is_shooter_runnning() && !is_dial_runnning()) {
-            last_state_ = SHOOTER_LOCKED;
-        } else {
-            // Stop dial first
-            if (is_dial_runnning()) {
-                stop_dial();
-            } else {
-                if (is_shooter_runnning()) {
-                    stop_shooter();
-                }
-            }
-        }
-        // RCLCPP_ERROR(logger_, "In Undefined state!");
+        stop_shooter();
+        stop_dial();
     } else {
-        last_state_ = UNDEFINED;
+        start_shooter(shooter_cmd);
+        if (shooter_cmd.fire_flag == FIRE) {
+            if (is_shooter_runnning()) {
+                if (check_dial_blocked()) {
+                    RCLCPP_WARN(logger_, "%s's dial is blocked", shooter_name_.c_str());
+                } else {
+                    RCLCPP_INFO(logger_, "%s's dial is fine", shooter_name_.c_str());
+                    start_dial(shooter_cmd);
+                }
+            } else {
+                stop_dial();
+            }
+        } else if (shooter_cmd.fire_flag == HOLD) {
+            stop_dial();
+        }
     }
-    RCLCPP_INFO(logger_, "state %d", last_state_);
 }
 
 void SingleShooter::update_params(const shooter_controller::Params& params) {
@@ -165,18 +106,12 @@ void SingleShooter::stop_shooter() {
 void SingleShooter::start_dial(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd) {
     dial_moto_ptr_->value_ = shooter_name_ == "shooter_left" ? -params_.dial.dial_velocity_level[shooter_cmd.dial_vel] : 
                                         params_.dial.dial_velocity_level[shooter_cmd.dial_vel];
-    RCLCPP_INFO(logger_, "value %f", dial_moto_ptr_->value_);
 }
 
 bool SingleShooter::is_dial_runnning() {
     bool is_dial_started = false;
     is_dial_started = std::abs(dial_moto_ptr_->real_current_) > 10;
-    if (is_dial_started) {
-        return true;
-    } else {
-        return false;
-    }
-
+    return is_dial_started;
 }
 
 void SingleShooter::stop_dial() {
@@ -216,17 +151,20 @@ bool SingleShooter::check_dial_blocked() {
             }
         }
     }
-    return true;
-
+    return is_blocked_;
 }
 
 void SingleShooter::solve_block_mode() {
     solve_block_cnt++;
-    if (solve_block_cnt > 400) {
+    if (solve_block_cnt > 50) {
         is_blocked_ = false;
         solve_block_cnt = 0;
     }
-    dial_moto_ptr_->value_ = -100;
+    if (shooter_name_ == "shooter_left") {
+        dial_moto_ptr_->value_ = 400;
+    } else {
+        dial_moto_ptr_->value_ = -400;
+    }
     dial_moto_ptr_->motor_mode_ = 0x01;
 }
 
