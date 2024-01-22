@@ -148,9 +148,9 @@ void SingleGimbal::do_autoaim(double yaw_angle, double pitch_angle) {
         angles::from_degrees(imu_pitch_),
         angles::from_degrees(pitch_angle)
     );
-    RCLCPP_INFO(logger_, "%f %f", imu_pitch_, pitch_angle);
+    // RCLCPP_INFO(logger_, "%f %f", imu_pitch_, pitch_angle);
     pitch_diff = (pitch_diff / 2 / M_PI) * 8192.0;
-    RCLCPP_INFO(logger_, "%f", pitch_diff);
+    // RCLCPP_INFO(logger_, "%f", pitch_diff);
     pitch_moto_ptr_->value_ = pitch_moto_ptr_->total_angle_ + pitch_diff;
     // Limit pitch's motor angle
     if (pitch_moto_ptr_->value_ > params_.pitch_max_angle) {

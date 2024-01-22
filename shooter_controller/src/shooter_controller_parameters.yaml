@@ -45,12 +45,12 @@ shooter_controller:
       type: double_array,
       default_value: 
       [ #can_id motor_types motor_id motor_mode motor_value 
-        2, 0x200, 2, 1, 0.0, #1
-        2, 0x200, 4, 1, 0.0, #2
-        2, 0x200, 1, 1, 0.0, #3
-        2, 0x200, 3, 1, 0.0, #4
-        2, 0x1ff, 3, 1, 0.0, #6
-        1, 0x1ff, 1, 1, 0.0, #5
+        2, 0x200, 2, 1, 0.0, #1    #leftup 
+        2, 0x200, 4, 1, 0.0, #2    #leftdown
+        2, 0x200, 1, 1, 0.0, #3    #rightup
+        2, 0x200, 3, 1, 0.0, #4    #rightdown
+        2, 0x1ff, 1, 1, 0.0, #6    #
+        1, 0x1ff, 1, 1, 0.0, #5    #
       ],
     }
     single_shooter: {
@@ -75,12 +75,12 @@ shooter_controller:
   shooter: 
     high_velocity: {
       type: double,
-      default_value: 500,
+      default_value: 2000,
       description: "High velocity of shooter",
     }
     low_velocity: {
       type: double,
-      default_value: 250,
+      default_value: 1000,
       description: "Low velocity of shooter",
     }
   dial: 

@@ -35,14 +35,27 @@ void AbreastDoubleShooter::update_motors(const std::vector<hardware_interface::L
 void AbreastDoubleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
                                     sensor_interfaces::msg::PowerHeatData power_heat_data) {
     // Round robin mode
+    static int cnt = 0;
     if (is_left_shooter_) {
+        // if (cnt < 500) {
+        //     cnt++;
+        // } else {
+        //     cnt = 0;
+        //     is_left_shooter_ = false;
+        // }
         shooters_.find("left")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
-        shooter_cmd.dial_vel = 0;
+        // shooter_cmd.dial_vel = 0;
         shooters_.find("right")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
         is_left_shooter_ = false;
     } else {
+        // if (cnt < 500) {
+        //     cnt++;
+        // } else {
+        //     cnt = 0;
+        //     is_left_shooter_ = true;
+        // }
         shooters_.find("right")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
-        shooter_cmd.dial_vel = 0;
+        // shooter_cmd.dial_vel = 0;
         shooters_.find("left")->second.update_shooter_cmd(shooter_cmd, power_heat_data);
         is_left_shooter_ = true;
     }
