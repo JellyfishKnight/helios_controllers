@@ -43,7 +43,6 @@ void SingleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCm
     // Update state machine
     // We must strictly limit shooters and dials
     // So we should judge their state every time
-    
     if (shooter_cmd.shooter_speed == STOP) {
         stop_shooter();
         stop_dial();
@@ -53,11 +52,13 @@ void SingleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCm
             if (is_shooter_runnning()) {
                 if (check_dial_blocked()) {
                     RCLCPP_WARN(logger_, "%s's dial is blocked", shooter_name_.c_str());
+                    start_dial(shooter_cmd);
                 } else {
-                    RCLCPP_INFO(logger_, "%s's dial is fine", shooter_name_.c_str());
+                    // RCLCPP_INFO(logger_, "%s's dial is fine", shooter_name_.c_str());
                     start_dial(shooter_cmd);
                 }
             } else {
+                RCLCPP_WARN(logger_, "%s's shooter is not running", shooter_name_.c_str());
                 stop_dial();
             }
         } else if (shooter_cmd.fire_flag == HOLD) {
@@ -105,7 +106,14 @@ void SingleShooter::stop_shooter() {
 
 void SingleShooter::start_dial(const helios_control_interfaces::msg::ShooterCmd& shooter_cmd) {
     dial_moto_ptr_->value_ = shooter_name_ == "shooter_left" ? -params_.dial.dial_velocity_level[shooter_cmd.dial_vel] : 
-                                        params_.dial.dial_velocity_level[shooter_cmd.dial_vel];
+                                        params_.dial.dial_velocity_level[shooter_cmd.dial_vel] * 3;
+    dial_moto_ptr_->value_ = is_blocked_ ? -dial_moto_ptr_->value_ : dial_moto_ptr_->value_;
+    if (is_blocked_) {
+        if (std::abs(block_total_angle_ - dial_moto_ptr_->total_angle_) > 40000) {
+            is_blocked_ = false;
+        }
+    }
+    // RCLCPP_INFO(logger_, "%s's dial is %f", shooter_name_.c_str(), dial_moto_ptr_->value_);
 }
 
 bool SingleShooter::is_dial_runnning() {
@@ -138,34 +146,35 @@ bool SingleShooter::judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_
 }
 
 bool SingleShooter::check_dial_blocked() {
-    if (is_blocked_) {
-        is_blocked_ = true;
-        solve_block_mode();
-    } else {
-        if ((std::abs(dial_moto_ptr_->real_current_) < 10 && dial_moto_ptr_->value_ != 0) || 
-            dial_moto_ptr_->given_current_ > params_.dial.dial_current_limit) {
-            dial_block_cnt_++;
+    bool blocked = false;
+    double current_limit = 400;
+    if (dial_moto_ptr_->value_ < 100) {
+        current_limit = 30;
+    }
+    if ((std::abs(dial_moto_ptr_->real_current_) < current_limit && dial_moto_ptr_->value_ != 0) || 
+        std::abs(dial_moto_ptr_->given_current_) > params_.dial.dial_current_limit) {
+        dial_block_cnt_++;
+        if (dial_moto_ptr_->value_ < 100) {
+            if (dial_block_cnt_ >= 200) {
+                dial_block_cnt_ = 0;
+                block_total_angle_ = dial_moto_ptr_->total_angle_;
+                is_blocked_ = !is_blocked_;
+                blocked = true;
+            } 
+        } else {
             if (dial_block_cnt_ >= params_.dial.dial_block_cnt_limit) {
                 dial_block_cnt_ = 0;
-                is_blocked_ = true;
+                block_total_angle_ = dial_moto_ptr_->total_angle_;
+                is_blocked_ = !is_blocked_;
+                blocked = true;
             }
         }
-    }
-    return is_blocked_;
-}
-
-void SingleShooter::solve_block_mode() {
-    solve_block_cnt++;
-    if (solve_block_cnt > 50) {
-        is_blocked_ = false;
-        solve_block_cnt = 0;
-    }
-    if (shooter_name_ == "shooter_left") {
-        dial_moto_ptr_->value_ = 400;
     } else {
-        dial_moto_ptr_->value_ = -400;
+        if (dial_moto_ptr_->value_ < 100) {
+            dial_block_cnt_ = 0;
+        }
     }
-    dial_moto_ptr_->motor_mode_ = 0x01;
+    return blocked;
 }
 
 

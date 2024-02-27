@@ -11,6 +11,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <rclcpp/rclcpp.hpp>
 
 #include "shooter/BaseShooter.hpp"
@@ -66,9 +67,10 @@ private:
     math_utilities::MotorPacket* dial_moto_ptr_;
 
     // solve block utilities
-    bool is_blocked_;
+    bool is_blocked_ = false;
     int dial_block_cnt_ = 0;
-    int solve_block_cnt = 0;
+    int64_t block_total_angle_;
+    int solve_block_cnt_ = 0;
 
     // heat data
     double dial_init_heat_;

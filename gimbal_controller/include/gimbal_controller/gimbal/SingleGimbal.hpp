@@ -58,10 +58,11 @@ private:
     math_utilities::MotorPacket* yaw_moto_ptr_;
     math_utilities::MotorPacket* pitch_moto_ptr_;
 
-    rclcpp::Time last_autoaim_msg_time_;
-    rclcpp::Time last_attack_msg_time_;
+    helios_control_interfaces::msg::GimbalCmd last_gimbal_cmd_;
 
     gimbal_controller::Params params_;
+
+    int lost_cnt_ = 0;
     
     int imu_round_cnt_;
     double imu_total_yaw_;

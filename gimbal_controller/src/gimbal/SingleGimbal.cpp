@@ -45,13 +45,8 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
     rclcpp::Time now = gimbal_cmd.header.stamp;
     // Update state machine
     if (last_state_ == AUTOAIM) {
-        if (gimbal_cmd.gimbal_mode == CRUISE || gimbal_cmd.gimbal_mode == ATTACK) {
-            if (now.seconds() - last_autoaim_msg_time_.seconds() > params_.autoaim_expire_time) {
-                last_state_ = CRUISE;
-                RCLCPP_INFO(logger_, "autoaim cmd expired");
-            } else {
-                last_state_ = AUTOAIM;
-            }
+        if (gimbal_cmd.gimbal_mode == CRUISE) {
+            last_state_ = KEEP;
         } else {
             last_state_ = AUTOAIM;
         }
@@ -60,21 +55,20 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
             last_state_ = CRUISE;
         } else if (gimbal_cmd.gimbal_mode == AUTOAIM) {
             last_state_ = AUTOAIM;
-        } else if (gimbal_cmd.gimbal_mode == ATTACK) {
-            last_state_ = ATTACK;
         }
-    } else if (last_state_ == ATTACK) {
+    } else if (last_state_ == KEEP) {
         if (gimbal_cmd.gimbal_mode == AUTOAIM) {
             last_state_ = AUTOAIM;
+            lost_cnt_ = 0;
         } else if (gimbal_cmd.gimbal_mode == CRUISE) {
-            if (now.seconds() - last_attack_msg_time_.seconds() > params_.autoaim_expire_time) {
+            lost_cnt_++;
+            if (lost_cnt_ > params_.autoaim_expire_time) {
                 last_state_ = CRUISE;
-                RCLCPP_INFO(logger_, "attack cmd expired");
+                lost_cnt_ = 0;
+                RCLCPP_WARN(logger_, "autoaim cmd expired");
             } else {
-                last_state_ = ATTACK;
+                last_state_ = KEEP;
             }
-        } else if (gimbal_cmd.gimbal_mode == ATTACK) {
-            last_state_ = ATTACK;
         }
     } else if (last_state_ == UNDEFINED) {
         last_state_ = static_cast<GimbalState>(gimbal_cmd.gimbal_mode);
@@ -82,11 +76,13 @@ void SingleGimbal::set_gimbal_cmd(const helios_control_interfaces::msg::GimbalCm
        last_state_ = UNDEFINED; 
     }
     // Update gimbal command
-    if (last_state_ == CRUISE && gimbal_cmd.gimbal_mode == CRUISE) {
+    if (last_state_ == CRUISE) {
         do_cruise(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value, chassis_rotation_vel);
-    } else if ((last_state_ == AUTOAIM && gimbal_cmd.gimbal_mode == AUTOAIM) ||
-                (last_state_ == ATTACK && gimbal_cmd.gimbal_mode == ATTACK)) {
+    } else if (last_state_ == AUTOAIM) {
         do_autoaim(gimbal_cmd.yaw_value, gimbal_cmd.pitch_value);
+        last_gimbal_cmd_ = gimbal_cmd;
+    } else if (last_state_ == KEEP) {
+        do_autoaim(last_gimbal_cmd_.yaw_value, last_gimbal_cmd_.pitch_value);
     } else {
         do_undefined(gimbal_cmd, chassis_rotation_vel);
     }
@@ -121,13 +117,10 @@ void SingleGimbal::do_cruise(double yaw_vel, double pitch_vel, double chassis_ro
     yaw_moto_ptr_->value_ = yaw_vel - chassis_rotation_vel;
     yaw_moto_ptr_->motor_mode_ = 0x01;
     // Set pitch motor velocity
-    if (std::abs(pitch_moto_ptr_->total_angle_ - params_.pitch_max_angle) < 100 || 
-        std::abs(pitch_moto_ptr_->total_angle_ - params_.pitch_min_angle) < 100) {
-        accel_cnt_++;
-        if (accel_cnt_ > 200) {
-            pitch_vel_flag_ = -pitch_vel_flag_;
-            accel_cnt_ = 0;
-        }
+    if (imu_pitch_ < -15) {
+        pitch_vel_flag_ = 1;
+    } else if (imu_pitch_ > 10) {
+        pitch_vel_flag_ = -1;
     }
     pitch_moto_ptr_->value_ = pitch_vel_flag_ * pitch_vel;
     pitch_moto_ptr_->motor_mode_ = 0x01;
