@@ -94,9 +94,11 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         const helios_control_interfaces::msg::GimbalCmd empty_gimbal_msg;
         const sensor_interfaces::msg::ImuEuler empty_imu_msg;
         const geometry_msgs::msg::TwistStamped empty_chassis_msg;
+        const std_msgs::msg::Float64 empty_fast_lio_yaw;
         received_gimbal_cmd_ptr_.set(std::make_shared<helios_control_interfaces::msg::GimbalCmd>(empty_gimbal_msg));
         received_imu_ptr_.set(std::make_shared<sensor_interfaces::msg::ImuEuler>(empty_imu_msg));
         received_chassis_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_chassis_msg));
+        received_compensation_yaw_ptr_.set(std::make_shared<std_msgs::msg::Float64>(empty_fast_lio_yaw));
         // initialize imu subscriber
         imu_euler_sub_ = get_node()->create_subscription<sensor_interfaces::msg::ImuEuler>(
             "imu_euler_out", rclcpp::SystemDefaultsQoS(), 
@@ -124,9 +126,18 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                 received_imu_ptr_.set(std::move(msg));
             }
         );
+
+        compensation_yaw_sub_ = get_node()->create_subscription<std_msgs::msg::Float64>(
+            "/fast_lio_yaw", rclcpp::SystemDefaultsQoS(),
+            [this](const std_msgs::msg::Float64::SharedPtr msg) {
+                RCLCPP_INFO_ONCE(logger_, "Received Compensation!");
+                received_compensation_yaw_ptr_.set(std::move(msg));
+            }
+        );
+
         // initialize chassis subscriber
         chassis_cmd_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
-            "cmd_vel", rclcpp::SystemDefaultsQoS(), 
+            "chassis_cmd_vel", rclcpp::SystemDefaultsQoS(), 
             [this](const std::shared_ptr<geometry_msgs::msg::TwistStamped> msg)->void {
                 if (!subscriber_is_active_) {
                     RCLCPP_WARN_ONCE(logger_, "Can't accept new chassis_cmd. subscriber is inactive");
@@ -237,6 +248,15 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
         RCLCPP_ERROR(logger_, "command message received was a nullptr");
         return controller_interface::return_type::ERROR;
     }
+    // Get compensation yaw
+    std::shared_ptr<std_msgs::msg::Float64> fast_lio_yaw;
+    received_compensation_yaw_ptr_.get(fast_lio_yaw);
+    double compensation_yaw_diff = 0;
+    if (fast_lio_yaw == nullptr) {
+        compensation_yaw_diff = 0;
+    } else {
+        compensation_yaw_diff = angles::to_degrees(fast_lio_yaw->data) - last_imu_msg_.yaw;
+    }
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
@@ -270,7 +290,8 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     // Set gimbal commands
     gimbal_->set_gimbal_cmd(*last_command_msg, *imu_msg, chassis_msg->twist.angular.z);
     // get diff yaw from imu to chassis
-    double diff_yaw_from_imu_to_chassis = gimbal_->caculate_diff_angle_from_imu_to_chassis();
+    double diff_yaw_from_imu_to_chassis = 
+        gimbal_->caculate_diff_angle_from_imu_to_chassis(compensation_yaw_diff);
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();

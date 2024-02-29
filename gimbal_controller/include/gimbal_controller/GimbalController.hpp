@@ -102,10 +102,13 @@ protected:
     realtime_tools::RealtimeBox<std::shared_ptr<helios_control_interfaces::msg::GimbalCmd>> received_gimbal_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<geometry_msgs::msg::TwistStamped>> received_chassis_cmd_ptr_;
     realtime_tools::RealtimeBox<std::shared_ptr<sensor_interfaces::msg::ImuEuler>> received_imu_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<std_msgs::msg::Float64>> received_compensation_yaw_ptr_;
 
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr chassis_cmd_sub_;
     rclcpp::Subscription<sensor_interfaces::msg::ImuEuler>::SharedPtr imu_euler_sub_;
     rclcpp::Subscription<helios_control_interfaces::msg::GimbalCmd>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr compensation_yaw_sub_;
+
     // Parameters from ROS for gimbal_controller
     std::shared_ptr<gimbal_controller::ParamListener> param_listener_;
     gimbal_controller::Params params_;

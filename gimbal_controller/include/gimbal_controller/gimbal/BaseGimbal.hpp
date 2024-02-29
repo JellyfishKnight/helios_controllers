@@ -45,7 +45,7 @@ public:
                                 const sensor_interfaces::msg::ImuEuler& imu_euler,
                                 double chassis_rotation_vel) = 0;
 
-    virtual double caculate_diff_angle_from_imu_to_chassis() = 0;
+    virtual double caculate_diff_angle_from_imu_to_chassis(double compensation_yaw_diff) = 0;
 
     virtual void update_params(const gimbal_controller::Params& params) = 0;
 

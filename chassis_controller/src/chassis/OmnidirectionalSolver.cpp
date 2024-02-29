@@ -25,7 +25,7 @@ void OmnidirectionalSolver::solve_geometry(geometry_msgs::msg::TwistStamped &twi
     double v_ly = twist_stamped.twist.linear.y;
     // angular velocity
     // z指向方向视角，顺时针为正，逆时针为负
-    double v_z = twist_stamped.twist.angular.z;
+    double v_z = twist_stamped.twist.angular.z * 3.909 * 19.2;
     Eigen::Vector2d v_l(v_lx, v_ly);
     Eigen::Matrix2d R;
     // yaw_diff = M_PI * 3 / 4;

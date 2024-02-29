@@ -36,7 +36,7 @@ public:
                         const sensor_interfaces::msg::ImuEuler& imu_euler,
                         double chassis_rotation_vel) override;
 
-    double caculate_diff_angle_from_imu_to_chassis() override;
+    double caculate_diff_angle_from_imu_to_chassis(double compensation_yaw_diff) override;
 
     void update_params(const gimbal_controller::Params& params) override;
 

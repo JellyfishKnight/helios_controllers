@@ -114,7 +114,7 @@ void SingleGimbal::do_cruise(double yaw_vel, double pitch_vel, double chassis_ro
     if (std::abs(pitch_vel) > params_.pitch_vel_limit) {
         pitch_vel = pitch_vel > 0 ? params_.pitch_vel_limit : -params_.pitch_vel_limit;
     }
-    yaw_moto_ptr_->value_ = yaw_vel - chassis_rotation_vel;
+    yaw_moto_ptr_->value_ = yaw_vel + chassis_rotation_vel;
     yaw_moto_ptr_->motor_mode_ = 0x01;
     // Set pitch motor velocity
     if (imu_pitch_ < -15) {
@@ -157,9 +157,9 @@ void SingleGimbal::do_autoaim(double yaw_angle, double pitch_angle) {
 }
 
 
-double SingleGimbal::caculate_diff_angle_from_imu_to_chassis() {
+double SingleGimbal::caculate_diff_angle_from_imu_to_chassis(double compensation_yaw_diff) {
     return -(fmod(yaw_moto_ptr_->total_angle_ - 6380, 8192.0) / 8192) * 2 * M_PI
-            - angles::from_degrees(fmod((imu_total_yaw_), 360.0));
+            - angles::from_degrees(fmod((imu_total_yaw_ + compensation_yaw_diff), 360.0));
 }
 
 } // namespace helios_control
