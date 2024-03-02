@@ -12,6 +12,7 @@
 #include "shooter/SingleShooter.hpp"
 #include "shooter/BaseShooter.hpp"
 #include <rclcpp/logging.hpp>
+#include <sensor_interfaces/msg/detail/power_heat__struct.hpp>
 
 
 namespace helios_control {
@@ -19,27 +20,17 @@ namespace helios_control {
 SingleShooter::SingleShooter(const shooter_controller::Params& params, const std::string& shooter_name) :
     shooter_name_(std::move(shooter_name)) {
     params_ = params;
-    last_cmd_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
 }
 
 void SingleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
-                                sensor_interfaces::msg::PowerHeatData power_heat_data) {
+                                sensor_interfaces::msg::RobotAim heat_data) {
     // Check if we can start dial
     ///TODO: lack of referee system, not judging heat now
-    // if (!judge_heat(power_heat_data, time_gap)) {
-    //     if (last_state_ == DIAL_RUNNING) {
-    //         if (is_dial_runnning()) {
-    //             stop_dial();
-    //         }
-    //     } else if (last_state_ == DIAL_LOCKED) {
-    //         last_state_ = SHOOTER_RUNNING;
-    //     } else if (last_state_ == SHOOTER_LOCKED) {
-    //         start_shooter(shooter_cmd);
-    //     } else if (last_state_ == UNDEFINED) {
-    //         last_state_ = SHOOTER_LOCKED;
-    //     }
-    //     return ;
-    // }
+    if (!judge_heat(heat_data)) {
+        stop_dial();
+        start_shooter(shooter_cmd);
+        return ;
+    }
     // Update state machine
     // We must strictly limit shooters and dials
     // So we should judge their state every time
@@ -127,14 +118,20 @@ void SingleShooter::stop_dial() {
     dial_moto_ptr_->motor_mode_ = 0x01;
 }
 
-bool SingleShooter::judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data, double time_diff) {
+bool SingleShooter::judge_heat(sensor_interfaces::msg::RobotAim heat_data) {
     if (is_dial_runnning()) {
         if (!dial_init_flag_) {
-            dial_init_heat_ = power_heat_data.shooter_id1_17mm_residual_cooling_heat;
+            dial_init_heat_ = heat_data.shooter_17mm_1_barrel_heat;
             dial_init_flag_ = true;
+            last_cmd_time_ = clock_.now();
         }
+        // Update time series
+        rclcpp::Time now = clock_.now();
+        double time_diff = (now - last_cmd_time_).seconds();
+        last_cmd_time_ = now;
+        // check heat
         dial_now_heat_ += dial_moto_ptr_->real_current_ * time_diff / 8192 / 3 * 8;
-        if (dial_now_heat_ < params_.heat_limit && dial_now_heat_ < params_.heat_limit) {
+        if (dial_now_heat_ < heat_data.shooter_barrel_heat_limit - params_.heat_res_limit) {
             return true;
         } else {
             return false;

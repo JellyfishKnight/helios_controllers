@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cstdint>
+#include <rclcpp/clock.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include "shooter/BaseShooter.hpp"
@@ -25,7 +26,7 @@ public:
     ~SingleShooter() = default;
 
     void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
-                                    sensor_interfaces::msg::PowerHeatData power_heat_data) override;
+                                    sensor_interfaces::msg::RobotAim heat_data) override;
 
     void update_motors(const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces,
                                 std::map<std::string, math_utilities::MotorPacket>& cmd_map) override;
@@ -45,7 +46,7 @@ private:
 
     void stop_dial();
 
-    bool judge_heat(sensor_interfaces::msg::PowerHeatData power_heat_data, double time_diff);
+    bool judge_heat(sensor_interfaces::msg::RobotAim power_heat_data);
 
     bool check_dial_blocked();
 
@@ -55,9 +56,9 @@ private:
 
     const std::string shooter_name_;
 
+    rclcpp::Clock clock_;
     rclcpp::Time last_cmd_time_;
-
-    ShooterState last_state_;
+    
     ShooterSpeed last_speed_;
     int last_shooter_speed_ = 0;
     int last_dial_speed_ = 0;

@@ -14,7 +14,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <helios_control_interfaces/msg/shooter_cmd.hpp>
-#include <sensor_interfaces/msg/power_heat_data.hpp>
+#include "sensor_interfaces/msg/robot_aim.hpp"
 
 #include <math_utilities/MotorPacket.hpp>
 
@@ -37,14 +37,6 @@ typedef enum {
     HIGH = 2,
 }ShooterSpeed;
 
-typedef enum {
-    SHOOTER_LOCKED = 0,
-    SHOOTER_RUNNING = 1,
-    DIAL_LOCKED = 2,
-    DIAL_RUNNING = 3,
-    UNDEFINED = 4,
-}ShooterState;
-
 class BaseShooter {
 public:
     BaseShooter() = default;
@@ -52,7 +44,7 @@ public:
     virtual ~BaseShooter() = default;
 
     virtual void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
-                                    sensor_interfaces::msg::PowerHeatData power_heat_data) = 0;
+                                    sensor_interfaces::msg::RobotAim heat_data) = 0;
 
     virtual void update_params(const shooter_controller::Params& params) = 0;
 

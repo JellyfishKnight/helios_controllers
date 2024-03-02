@@ -21,7 +21,7 @@
 #include "shooter/SingleShooter.hpp"
 
 #include "helios_control_interfaces/msg/shooter_cmd.hpp"
-#include "sensor_interfaces/msg/power_heat_data.hpp"
+#include "sensor_interfaces/msg/robot_aim.hpp"
 
 #include <map>
 #include <string.h>
@@ -38,7 +38,7 @@ public:
     ~AbreastDoubleShooter() = default;
 
     void update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
-                                    sensor_interfaces::msg::PowerHeatData power_heat_data) override;
+                                    sensor_interfaces::msg::RobotAim power_heat_data) override;
 
     void update_motors(const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces,
                             std::map<std::string, math_utilities::MotorPacket>& cmd_map) override;

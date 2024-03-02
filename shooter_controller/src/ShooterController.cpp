@@ -16,7 +16,6 @@
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/qos.hpp>
-#include <sensor_interfaces/msg/detail/power_heat_data__struct.hpp>
 
 namespace helios_control {
 
@@ -104,12 +103,12 @@ controller_interface::CallbackReturn ShooterController::on_configure(const rclcp
     );
     // initialize subscribers
     const helios_control_interfaces::msg::ShooterCmd empty_gimbal_msg;
-    const sensor_interfaces::msg::PowerHeatData empty_heat_msg;
+    const sensor_interfaces::msg::RobotAim empty_heat_msg;
     received_shooter_cmd_ptr_.set(std::make_shared<helios_control_interfaces::msg::ShooterCmd>(empty_gimbal_msg));
-    received_heat_ptr_.set(std::make_shared<sensor_interfaces::msg::PowerHeatData>(empty_heat_msg));
-    heat_sub_ = get_node()->create_subscription<sensor_interfaces::msg::PowerHeatData>(
+    received_heat_ptr_.set(std::make_shared<sensor_interfaces::msg::RobotAim>(empty_heat_msg));
+    heat_sub_ = get_node()->create_subscription<sensor_interfaces::msg::RobotAim>(
         DEFAULT_HEAT_TOPIC, rclcpp::SensorDataQoS(), 
-        [this](sensor_interfaces::msg::PowerHeatData::SharedPtr msg) {
+        [this](sensor_interfaces::msg::RobotAim::SharedPtr msg) {
             if (!subscriber_is_active_) {
                 RCLCPP_WARN(logger_, "Can't accept new states. subscriber is inactive");
                 return ;

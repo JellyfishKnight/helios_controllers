@@ -23,11 +23,12 @@
 #include "helios_control_interfaces/msg/shooter_cmd.hpp"
 #include "helios_control_interfaces/msg/motor_state.hpp"
 #include "helios_control_interfaces/msg/motor_states.hpp"
-#include "sensor_interfaces/msg/power_heat_data.hpp"
+#include "sensor_interfaces/msg/robot_aim.hpp"
 
 #include "visibility_control.h"
 
 #include <memory>
+#include <sensor_interfaces/msg/detail/robot_aim__struct.hpp>
 #include <vector>
 #include <queue>
 #include <string>
@@ -88,10 +89,10 @@ protected:
     rclcpp::Publisher<helios_control_interfaces::msg::MotorStates>::SharedPtr state_pub_;
     
     realtime_tools::RealtimeBox<std::shared_ptr<helios_control_interfaces::msg::ShooterCmd>> received_shooter_cmd_ptr_;
-    realtime_tools::RealtimeBox<std::shared_ptr<sensor_interfaces::msg::PowerHeatData>> received_heat_ptr_;
+    realtime_tools::RealtimeBox<std::shared_ptr<sensor_interfaces::msg::RobotAim>> received_heat_ptr_;
 
     rclcpp::Subscription<helios_control_interfaces::msg::ShooterCmd>::SharedPtr cmd_sub_;
-    rclcpp::Subscription<sensor_interfaces::msg::PowerHeatData>::SharedPtr heat_sub_;
+    rclcpp::Subscription<sensor_interfaces::msg::RobotAim>::SharedPtr heat_sub_;
     // Parameters from ROS for OmnidirectionalController
     std::shared_ptr<ParamsListener> param_listener_;
     Params params_;
@@ -104,7 +105,7 @@ protected:
     std::chrono::milliseconds cmd_timeout_{50};
 
     std::shared_ptr<helios_control_interfaces::msg::ShooterCmd> last_command_msg;
-    std::shared_ptr<sensor_interfaces::msg::PowerHeatData> last_heat_msg;
+    std::shared_ptr<sensor_interfaces::msg::RobotAim> last_heat_msg;
 
     bool should_publish_ = false;
     // motor cmds

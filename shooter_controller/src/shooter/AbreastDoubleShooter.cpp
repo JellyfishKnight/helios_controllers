@@ -12,6 +12,7 @@
 #include "shooter/AbreastDoubleShooter.hpp"
 #include <cmath>
 #include <rclcpp/logging.hpp>
+#include <sensor_interfaces/msg/detail/robot_aim__struct.hpp>
 
 namespace helios_control {
 
@@ -33,7 +34,7 @@ void AbreastDoubleShooter::update_motors(const std::vector<hardware_interface::L
 
 
 void AbreastDoubleShooter::update_shooter_cmd(helios_control_interfaces::msg::ShooterCmd shooter_cmd, 
-                                    sensor_interfaces::msg::PowerHeatData power_heat_data) {
+                                    sensor_interfaces::msg::RobotAim power_heat_data) {
     // Round robin mode
     // static int cnt = 0;
     // if (is_left_shooter_) {
