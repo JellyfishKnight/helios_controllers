@@ -44,7 +44,7 @@
 namespace helios_control {
 
 constexpr auto DEFAULT_COMMAND_TOPIC = "/shooter_cmd";
-constexpr auto DEFAULT_HEAT_TOPIC = "/power_heat_data";
+constexpr auto DEFAULT_HEAT_TOPIC = "/power_heat";
 constexpr auto DEFAULT_COMMAND_OUT_TOPIC = "/shooter_cmd_out";
 
 using Params = shooter_controller::Params;
