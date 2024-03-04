@@ -11,6 +11,8 @@
  */
 #include "GimbalController.hpp"
 #include "gimbal/BaseGimbal.hpp"
+#include <angles/angles.h>
+#include <cmath>
 
 namespace helios_control {
 
@@ -95,10 +97,12 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
         const sensor_interfaces::msg::ImuEuler empty_imu_msg;
         const geometry_msgs::msg::TwistStamped empty_chassis_msg;
         const std_msgs::msg::Float64 empty_fast_lio_yaw;
+        const sensor_interfaces::msg::RobotAim empty_robot_aim_msg;
         received_gimbal_cmd_ptr_.set(std::make_shared<helios_control_interfaces::msg::GimbalCmd>(empty_gimbal_msg));
         received_imu_ptr_.set(std::make_shared<sensor_interfaces::msg::ImuEuler>(empty_imu_msg));
         received_chassis_cmd_ptr_.set(std::make_shared<geometry_msgs::msg::TwistStamped>(empty_chassis_msg));
         received_compensation_yaw_ptr_.set(std::make_shared<std_msgs::msg::Float64>(empty_fast_lio_yaw));
+        received_robot_aim_ptr_.set(std::make_shared<sensor_interfaces::msg::RobotAim>(empty_robot_aim_msg));
         // initialize imu subscriber
         imu_euler_sub_ = get_node()->create_subscription<sensor_interfaces::msg::ImuEuler>(
             "imu_euler_out", rclcpp::SystemDefaultsQoS(), 
@@ -121,7 +125,7 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                 else if (yaw_diff > 180) {
                     imu_cnt_--;
                 }
-                total_yaw_ = msg->yaw + imu_cnt_ * 360;
+                total_yaw_ = msg->yaw + imu_cnt_ * 360 - msg->init_yaw;
                 last_imu_msg_ = *msg;
                 received_imu_ptr_.set(std::move(msg));
             }
@@ -181,6 +185,26 @@ controller_interface::CallbackReturn GimbalController::on_configure(const rclcpp
                 received_gimbal_cmd_ptr_.set(std::move(msg));
             }
         );
+
+        // initialize robot aim subscriber
+        robot_aim_sub_ = get_node()->create_subscription<sensor_interfaces::msg::RobotAim>(
+            "robot_aim", rclcpp::SystemDefaultsQoS(),
+            [this](const std::shared_ptr<sensor_interfaces::msg::RobotAim> msg) {
+                if (!subscriber_is_active_) {
+                    RCLCPP_WARN_ONCE(logger_, "Can't accept new robot_aim. subscriber is inactive");
+                    return ;
+                }
+                if ((msg->header.stamp.sec == 0) && (msg->header.stamp.nanosec == 0)) {
+                    RCLCPP_WARN_ONCE(logger_,
+                        "Received TwistStamped with zero timestamp, setting it to current "
+                        "time, this message will only be shown once"
+                    );
+                    msg->header.stamp = get_node()->get_clock()->now();
+                }
+                received_robot_aim_ptr_.set(std::move(msg));
+            }
+        );
+
         // set publish rate
         publish_rate_ = params_.publish_rate;
         publish_period_ = rclcpp::Duration::from_seconds(1.0 / publish_rate_);
@@ -257,12 +281,24 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     } else {
         compensation_yaw_diff = angles::to_degrees(fast_lio_yaw->data) - last_imu_msg_.yaw;
     }
+    // Get robot aim
+    std::shared_ptr<sensor_interfaces::msg::RobotAim> robot_aim;
+    received_robot_aim_ptr_.get(robot_aim);
+    if (robot_aim == nullptr) {
+        RCLCPP_ERROR(logger_, "robot aim message received was a nullptr");
+        return controller_interface::return_type::ERROR;
+    }
     const auto age_of_last_command = time - last_command_msg->header.stamp;
     // Brake if cmd has timeout, override the stored command
     if (age_of_last_command > cmd_timeout_) {
         last_command_msg->pitch_value = 0;
         last_command_msg->yaw_value = 0;
         return controller_interface::return_type::OK;
+    }
+    // Check if robot aim has expired or not 
+    if (time - robot_aim->header.stamp > cmd_timeout_) {
+        RCLCPP_WARN(logger_, "Robot aim message expired");
+        robot_aim.reset();
     }
     try {
         if (previous_publish_timestamp_ + publish_period_ < time) {
@@ -292,6 +328,16 @@ controller_interface::return_type GimbalController::update(const rclcpp::Time &t
     // get diff yaw from imu to chassis
     double diff_yaw_from_imu_to_chassis = 
         gimbal_->caculate_diff_angle_from_imu_to_chassis(compensation_yaw_diff);
+    // Turn to heated direction if is cruising
+    if (robot_aim) {
+        if (gimbal_->get_last_state() == CRUISE) {
+            last_command_msg->yaw_value = imu_msg->yaw + 
+                diff_yaw_from_imu_to_chassis + robot_aim->armor_id * M_PI_4;
+            last_command_msg->pitch_value = 0;
+            last_command_msg->gimbal_mode = AUTOAIM;
+            gimbal_->set_gimbal_cmd(*last_command_msg, *imu_msg, chassis_msg->twist.angular.z);
+        }
+    }
     // publish tf2 transform from imu to chassis
     geometry_msgs::msg::TransformStamped ts;
     ts.header.stamp = this->get_node()->now();

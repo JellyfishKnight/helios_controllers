@@ -50,7 +50,6 @@ private:
 
     void do_undefined(const helios_control_interfaces::msg::GimbalCmd& gimbal_cmd, double chassis_rotation_vel);
 
-    GimbalState last_state_;
     int pitch_vel_flag_ = 1;
     int accel_cnt_ = 0;
     int last_pitch_angle_ = 0;

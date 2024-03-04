@@ -52,7 +52,11 @@ public:
     virtual void update_motors(const std::vector<hardware_interface::LoanedStateInterface>& state_interfaces,
                                std::map<std::string, math_utilities::MotorPacket>& cmd_map) = 0;
 
+    virtual GimbalState get_last_state() const {
+        return last_state_;
+    }
+protected:
+    GimbalState last_state_;
 };
-
 
 } // namespace helios_control

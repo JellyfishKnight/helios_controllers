@@ -14,7 +14,8 @@
 namespace helios_control {
 
 SingleGimbal::SingleGimbal(const gimbal_controller::Params& params) : 
-    last_state_(CRUISE), params_(params) {
+    params_(params) {
+    last_state_ = CRUISE;
     imu_round_cnt_ = 0;
     accel_cnt_ = 0;
     pitch_vel_flag_ = 1;
